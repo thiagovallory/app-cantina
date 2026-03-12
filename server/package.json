@@ -1,0 +1,18 @@
+{
+  "name": "app-cantina-server",
+  "version": "1.0.0",
+  "description": "Backend HTTP com SQLite para App Cantina",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
+  }
+}
