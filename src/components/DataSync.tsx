@@ -70,7 +70,7 @@ export const DataSync: React.FC<DataSyncProps> = ({ open, onClose }) => {
       } else {
         setImportError(result.error || 'Erro ao importar dados');
       }
-    } catch (error) {
+    } catch {
       setImportError('Erro ao ler o arquivo');
     } finally {
       setImporting(false);

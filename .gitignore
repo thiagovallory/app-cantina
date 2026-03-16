@@ -12,10 +12,19 @@ server/node_modules
 dist
 dist-ssr
 release
+distribution/windows/*
+distribution/macos/*
+!distribution/windows/.gitkeep
+!distribution/macos/.gitkeep
 *.local
 server/data/*.db
 certs/*.key
 certs/*.crt
+electron/assets/icon-16.png
+electron/assets/icon-32.png
+electron/assets/icon-48.png
+electron/assets/icon-256.png
+electron/assets/icon.iconset/
 
 # Editor directories and files
 .vscode/*

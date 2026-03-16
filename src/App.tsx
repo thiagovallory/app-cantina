@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useDeferredValue, useMemo, useState, startTransition } from 'react';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { 
   AppBar, 
@@ -17,7 +17,10 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  CircularProgress,
+  Paper,
+  Chip
 } from '@mui/material';
 import { 
   People as PeopleIcon, 
@@ -37,20 +40,63 @@ import {
 } from '@mui/icons-material';
 import { AppProvider, useApp } from './context/AppContext';
 import { PersonList } from './components/PersonList';
-import { PersonForm } from './components/PersonForm';
-import { ProductForm } from './components/ProductForm';
 import { PersonDetail } from './components/PersonDetail';
-import { PurchaseModal } from './components/PurchaseModal';
 import { ProductList } from './components/ProductList';
-import { CSVImport } from './components/CSVImport';
-import { Reports } from './components/Reports';
-import { EncerrarAcampamento } from './components/EncerrarAcampamento';
-import { BrandingSettings } from './components/BrandingSettings';
-import { DataSync } from './components/DataSync';
 import { NetworkStatus } from './components/NetworkStatus';
-import { HelpGuide } from './components/HelpGuide';
 import type { Person } from './types/index';
 import { createAppTheme } from './theme/theme';
+
+const PersonForm = lazy(() => import('./components/PersonForm').then((module) => ({ default: module.PersonForm })));
+const ProductForm = lazy(() => import('./components/ProductForm').then((module) => ({ default: module.ProductForm })));
+const PurchaseModal = lazy(() => import('./components/PurchaseModal').then((module) => ({ default: module.PurchaseModal })));
+const CSVImport = lazy(() => import('./components/CSVImport').then((module) => ({ default: module.CSVImport })));
+const Reports = lazy(() => import('./components/Reports').then((module) => ({ default: module.Reports })));
+const EncerrarAcampamento = lazy(() => import('./components/EncerrarAcampamento').then((module) => ({ default: module.EncerrarAcampamento })));
+const BrandingSettings = lazy(() => import('./components/BrandingSettings').then((module) => ({ default: module.BrandingSettings })));
+const DataSync = lazy(() => import('./components/DataSync').then((module) => ({ default: module.DataSync })));
+const HelpGuide = lazy(() => import('./components/HelpGuide').then((module) => ({ default: module.HelpGuide })));
+
+function ModalFallback() {
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        inset: 0,
+        bgcolor: 'rgba(12, 18, 24, 0.28)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2000
+      }}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          px: 3,
+          py: 2.5,
+          borderRadius: 4,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          bgcolor: 'background.paper',
+          border: '1px solid',
+          borderColor: 'divider'
+        }}
+      >
+        <CircularProgress size={24} />
+        <Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            Carregando
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Preparando a proxima tela.
+          </Typography>
+        </Box>
+      </Paper>
+    </Box>
+  );
+}
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<'people' | 'products'>('people');
@@ -68,32 +114,51 @@ function AppContent() {
   const [showHelpGuide, setShowHelpGuide] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const { people, branding } = useApp();
-  const brandingMissionaryOffersResetTime = branding.missionaryOffersResetAt
-    ? new Date(branding.missionaryOffersResetAt).getTime()
-    : 0;
-  const latestCampClosingTime = people.reduce((latestTime, person) => (
-    person.purchases.reduce((personLatestTime, purchase) => {
-      const hasCampClosingItem = purchase.items.some((item) => item.productId === 'encerramento');
-      if (!hasCampClosingItem) {
-        return personLatestTime;
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const appSummary = useMemo(() => {
+    const brandingMissionaryOffersResetTime = branding.missionaryOffersResetAt
+      ? new Date(branding.missionaryOffersResetAt).getTime()
+      : 0;
+    const latestCampClosingTime = people.reduce((latestTime, person) => (
+      person.purchases.reduce((personLatestTime, purchase) => {
+        const hasCampClosingItem = purchase.items.some((item) => item.productId === 'encerramento');
+        if (!hasCampClosingItem) {
+          return personLatestTime;
+        }
+
+        return Math.max(personLatestTime, new Date(purchase.date).getTime());
+      }, latestTime)
+    ), 0);
+    const missionaryOffersResetTime = Math.max(
+      brandingMissionaryOffersResetTime,
+      latestCampClosingTime
+    );
+    const totalMissionaryOffers = people.reduce((total, person) => (
+      total + person.purchases.reduce((personTotal, purchase) => (
+        new Date(purchase.date).getTime() <= missionaryOffersResetTime
+          ? personTotal
+          : personTotal + purchase.items.reduce((itemsTotal, item) => (
+              itemsTotal + (item.productName === 'Oferta Missionária' ? item.total : 0)
+            ), 0)
+      ), 0)
+    ), 0);
+    const filteredPeople = people.filter((person) => {
+      const normalizedSearch = deferredSearchTerm.trim().toLowerCase();
+      if (!normalizedSearch) {
+        return true;
       }
 
-      return Math.max(personLatestTime, new Date(purchase.date).getTime());
-    }, latestTime)
-  ), 0);
-  const missionaryOffersResetTime = Math.max(
-    brandingMissionaryOffersResetTime,
-    latestCampClosingTime
-  );
-  const totalMissionaryOffers = people.reduce((total, person) => (
-    total + person.purchases.reduce((personTotal, purchase) => (
-      new Date(purchase.date).getTime() <= missionaryOffersResetTime
-        ? personTotal
-        : personTotal + purchase.items.reduce((itemsTotal, item) => (
-            itemsTotal + (item.productName === 'Oferta Missionária' ? item.total : 0)
-          ), 0)
-    ), 0)
-  ), 0);
+      return person.name.toLowerCase().includes(normalizedSearch) ||
+        (person.customId && person.customId.toLowerCase().includes(normalizedSearch));
+    });
+
+    return {
+      totalMissionaryOffers,
+      filteredPeople,
+      peopleCount: people.length
+    };
+  }, [branding.missionaryOffersResetAt, deferredSearchTerm, people]);
+  const totalMissionaryOffers = appSummary.totalMissionaryOffers;
   const missionaryGoal = branding.missionaryGoal || 0;
   const missionaryProgress = missionaryGoal > 0 ? Math.min((totalMissionaryOffers / missionaryGoal) * 100, 100) : 0;
   const getMissionaryProgressColor = (progress: number) => {
@@ -109,24 +174,23 @@ function AppContent() {
     _event: React.MouseEvent<HTMLElement>,
     newValue: 'people' | 'products' | null,
   ) => {
-    if (newValue !== null) {
-      // Se clicar em "Pessoas" e já está na aba pessoas, volta para a lista
-      if (newValue === 'people' && activeTab === 'people' && selectedPerson) {
-        setSelectedPerson(null);
-        setSearchTerm('');
+      if (newValue !== null) {
+        // Se clicar em "Pessoas" e já está na aba pessoas, volta para a lista
+        if (newValue === 'people' && activeTab === 'people' && selectedPerson) {
+          startTransition(() => {
+            setSelectedPerson(null);
+            setSearchTerm('');
+          });
       } else {
-        setActiveTab(newValue);
-        setSearchTerm(''); // Limpa a busca ao mudar de aba
-        setSelectedPerson(null); // Limpa a pessoa selecionada ao mudar de aba
+          startTransition(() => {
+            setActiveTab(newValue);
+            setSearchTerm('');
+            setSelectedPerson(null);
+          });
+        }
       }
-    }
   };
-
-  // Filtra pessoas baseado no termo de busca (nome ou ID customizado)
-  const filteredPeople = people.filter(person =>
-    person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (person.customId && person.customId.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredPeople = appSummary.filteredPeople;
 
   // Handler para Enter no campo de busca
   const handleSearchKeyPress = (e: React.KeyboardEvent) => {
@@ -145,25 +209,47 @@ function AppContent() {
     setMenuAnchorEl(null);
   };
 
+  const openLazyPanel = (openState: React.Dispatch<React.SetStateAction<boolean>>) => {
+    startTransition(() => {
+      openState(true);
+    });
+    handleMenuClose();
+  };
+
   const handleImportCSV = (type: 'products' | 'people') => {
     setCSVImportType(type);
-    setShowCSVImport(true);
-    handleMenuClose();
+    openLazyPanel(setShowCSVImport);
   };
 
   const handleReports = () => {
-    setShowReports(true);
-    handleMenuClose();
+    openLazyPanel(setShowReports);
   };
 
   const handleEncerrarAcampamento = () => {
-    setShowEncerrarAcampamento(true);
-    handleMenuClose();
+    openLazyPanel(setShowEncerrarAcampamento);
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="sticky" elevation={0} sx={{ bgcolor: 'surface.variant', color: 'text.primary' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        bgcolor: 'background.default',
+        backgroundImage: 'radial-gradient(circle at top left, rgba(0, 100, 149, 0.12), transparent 34%), linear-gradient(180deg, rgba(255,255,255,0.12), transparent 18%)'
+      }}
+    >
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          bgcolor: 'rgba(248, 251, 255, 0.84)',
+          color: 'text.primary',
+          backdropFilter: 'blur(14px)',
+          borderBottom: '1px solid',
+          borderColor: 'divider'
+        }}
+      >
         <Toolbar>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1 }}>
             {branding.showLogo && (
@@ -180,6 +266,16 @@ function AppContent() {
             <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
               {branding.organizationName}
             </Typography>
+            <Chip
+              label={`${appSummary.peopleCount} pessoas`}
+              size="small"
+              sx={{
+                borderRadius: 999,
+                bgcolor: 'rgba(0, 100, 149, 0.08)',
+                color: 'primary.dark',
+                fontWeight: 700
+              }}
+            />
             <Box sx={{ ml: 2 }}>
               <NetworkStatus />
             </Box>
@@ -314,19 +410,19 @@ function AppContent() {
               </ListItemIcon>
               <ListItemText>Relatórios</ListItemText>
             </MenuItem>
-            <MenuItem onClick={() => { setShowBrandingSettings(true); setMenuAnchorEl(null); }}>
+            <MenuItem onClick={() => openLazyPanel(setShowBrandingSettings)}>
               <ListItemIcon>
                 <SettingsIcon fontSize="small" />
               </ListItemIcon>
               <ListItemText>Configurações</ListItemText>
             </MenuItem>
-            <MenuItem onClick={() => { setShowDataSync(true); setMenuAnchorEl(null); }}>
+            <MenuItem onClick={() => openLazyPanel(setShowDataSync)}>
               <ListItemIcon>
                 <SyncIcon fontSize="small" />
               </ListItemIcon>
               <ListItemText>Sincronização</ListItemText>
             </MenuItem>
-            <MenuItem onClick={() => { setShowHelpGuide(true); setMenuAnchorEl(null); }}>
+            <MenuItem onClick={() => openLazyPanel(setShowHelpGuide)}>
               <ListItemIcon>
                 <HelpOutlineIcon fontSize="small" />
               </ListItemIcon>
@@ -448,58 +544,60 @@ function AppContent() {
         </Fab>
       )}
 
-      {showPersonForm && <PersonForm onClose={() => setShowPersonForm(false)} />}
-      {showProductForm && <ProductForm onClose={() => setShowProductForm(false)} />}
-      {purchasePerson && (
-        <PurchaseModal
-          person={purchasePerson}
-          onClose={() => setPurchasePerson(null)}
-        />
-      )}
-      {showCSVImport && (
-        <CSVImport
-          open={showCSVImport}
-          onClose={() => setShowCSVImport(false)}
-          type={csvImportType}
-        />
-      )}
-      {showReports && (
-        <Reports
-          open={showReports}
-          onClose={() => setShowReports(false)}
-        />
-      )}
-      {showEncerrarAcampamento && (
-        <EncerrarAcampamento
-          open={showEncerrarAcampamento}
-          onClose={() => setShowEncerrarAcampamento(false)}
-        />
-      )}
-      {showBrandingSettings && (
-        <BrandingSettings
-          open={showBrandingSettings}
-          onClose={() => setShowBrandingSettings(false)}
-        />
-      )}
-      {showDataSync && (
-        <DataSync
-          open={showDataSync}
-          onClose={() => setShowDataSync(false)}
-        />
-      )}
-      {showHelpGuide && (
-        <HelpGuide
-          open={showHelpGuide}
-          onClose={() => setShowHelpGuide(false)}
-        />
-      )}
+      <Suspense fallback={<ModalFallback />}>
+        {showPersonForm && <PersonForm onClose={() => setShowPersonForm(false)} />}
+        {showProductForm && <ProductForm onClose={() => setShowProductForm(false)} />}
+        {purchasePerson && (
+          <PurchaseModal
+            person={purchasePerson}
+            onClose={() => setPurchasePerson(null)}
+          />
+        )}
+        {showCSVImport && (
+          <CSVImport
+            open={showCSVImport}
+            onClose={() => setShowCSVImport(false)}
+            type={csvImportType}
+          />
+        )}
+        {showReports && (
+          <Reports
+            open={showReports}
+            onClose={() => setShowReports(false)}
+          />
+        )}
+        {showEncerrarAcampamento && (
+          <EncerrarAcampamento
+            open={showEncerrarAcampamento}
+            onClose={() => setShowEncerrarAcampamento(false)}
+          />
+        )}
+        {showBrandingSettings && (
+          <BrandingSettings
+            open={showBrandingSettings}
+            onClose={() => setShowBrandingSettings(false)}
+          />
+        )}
+        {showDataSync && (
+          <DataSync
+            open={showDataSync}
+            onClose={() => setShowDataSync(false)}
+          />
+        )}
+        {showHelpGuide && (
+          <HelpGuide
+            open={showHelpGuide}
+            onClose={() => setShowHelpGuide(false)}
+          />
+        )}
+      </Suspense>
     </Box>
   );
 }
 
 function ThemedApp() {
   const { branding } = useApp();
-  const theme = createAppTheme(branding.darkMode);
+  const theme = useMemo(() => createAppTheme(branding.darkMode), [branding.darkMode]);
   
   return (
     <ThemeProvider theme={theme}>

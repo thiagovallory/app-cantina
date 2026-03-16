@@ -49,12 +49,17 @@ export const createAppTheme = (darkMode: boolean) => createTheme({
       light: "#9a7da1",
       dark: "#773b75",
     },
+    success: {
+      main: "#2e7d57",
+      light: "#5aa57f",
+      dark: "#0b5a38",
+    },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 14,
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif',
     h1: {
       fontSize: "2.125rem",
       fontWeight: 400,
@@ -79,7 +84,7 @@ export const createAppTheme = (darkMode: boolean) => createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 12,
           padding: "10px 24px",
           fontSize: "0.875rem",
           fontWeight: 500,
@@ -98,10 +103,10 @@ export const createAppTheme = (darkMode: boolean) => createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
-          boxShadow: "0px 1px 2px rgba(0, 0, 0, 0.05)",
+          borderRadius: 18,
+          boxShadow: "0px 8px 24px rgba(18, 41, 56, 0.08)",
           "&:hover": {
-            boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.15)",
+            boxShadow: "0px 12px 28px rgba(18, 41, 56, 0.14)",
           },
         },
       },
@@ -110,7 +115,7 @@ export const createAppTheme = (darkMode: boolean) => createTheme({
       styleOverrides: {
         root: {
           "& .MuiOutlinedInput-root": {
-            borderRadius: 8,
+            borderRadius: 14,
           },
         },
       },
@@ -118,7 +123,7 @@ export const createAppTheme = (darkMode: boolean) => createTheme({
     MuiFab: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 16,
           boxShadow: "0px 3px 12px rgba(0, 0, 0, 0.15)",
         },
       },
@@ -126,7 +131,22 @@ export const createAppTheme = (darkMode: boolean) => createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 999,
+        },
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 24,
+          boxShadow: "0px 20px 60px rgba(12, 32, 44, 0.22)",
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          boxShadow: "none",
         },
       },
     },

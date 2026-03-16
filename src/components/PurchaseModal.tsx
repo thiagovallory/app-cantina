@@ -146,11 +146,11 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({ person, onClose })
     }
   };
 
-  const getTotalAmount = () => {
+  const getTotalAmount = useCallback(() => {
     const total = cartItems.reduce((sum, item) => sum + item.total, 0);
     // Arredonda para 2 casas decimais para evitar problemas de precisão
     return Math.round(total * 100) / 100;
-  };
+  }, [cartItems]);
 
   const handlePurchase = useCallback(async () => {
     if (cartItems.length === 0) return;
@@ -173,7 +173,7 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({ person, onClose })
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Falha ao registrar compra');
     }
-  }, [addPurchase, cartItems, onClose, person.balance, person.id]);
+  }, [addPurchase, cartItems, getTotalAmount, onClose, person.balance, person.id]);
 
   const handleScan = (barcode: string) => {
     const product = getProductFromBarcode(barcode);

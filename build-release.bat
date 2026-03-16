@@ -28,10 +28,16 @@ if not exist "node_modules" (
     )
 )
 
+REM Garantir pastas de distribuicao
+if not exist "distribution" mkdir "distribution"
+if not exist "distribution\windows" mkdir "distribution\windows"
+if not exist "distribution\macos" mkdir "distribution\macos"
+
 REM Limpar builds anteriores
 echo [INFO] Limpando builds anteriores...
 if exist "dist" rmdir /s /q "dist"
-if exist "release" rmdir /s /q "release"
+del /q "distribution\windows\*" >nul 2>&1
+del /q "distribution\macos\*" >nul 2>&1
 
 REM Build da aplicação
 echo [INFO] Compilando aplicacao...
@@ -45,7 +51,7 @@ if %errorlevel% neq 0 (
 echo.
 echo Escolha qual versao deseja gerar:
 echo 1) Windows 64-bit (.exe)
-echo 2) Windows 32-bit (.exe)
+echo 2) Windows ARM64 (.exe)
 echo 3) Ambas versoes
 echo.
 set /p choice="Opcao (1-3): "
@@ -54,11 +60,13 @@ if "%choice%"=="1" (
     echo [INFO] Gerando versao Windows 64-bit...
     call npm run dist-win
 ) else if "%choice%"=="2" (
-    echo [INFO] Gerando versao Windows 32-bit...
-    call npx electron-builder --win --ia32
+    echo [INFO] Gerando versao Windows ARM64...
+    call npm run dist-win-arm64
 ) else if "%choice%"=="3" (
     echo [INFO] Gerando ambas versoes...
     call npm run dist-win
+    if %errorlevel% neq 0 exit /b %errorlevel%
+    call npm run dist-win-arm64
 ) else (
     echo [ERRO] Opcao invalida
     pause
@@ -71,9 +79,11 @@ if %errorlevel% equ 0 (
     echo   BUILD CONCLUIDO COM SUCESSO!
     echo ====================================
     echo.
-    echo Os executaveis estao na pasta: release\
+    echo Os executaveis estao em:
+    echo   distribution\windows\
+    echo   distribution\macos\
     echo.
-    dir release\*.exe /b 2>nul
+    dir distribution\windows\ /b 2>nul
     echo.
     echo Pronto para distribuicao!
     echo.

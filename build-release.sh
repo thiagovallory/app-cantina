@@ -24,9 +24,12 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
+# Garantir pastas de distribuicao
+mkdir -p distribution/windows distribution/macos
+
 # Limpar builds anteriores
 echo -e "${YELLOW}🧹 Limpando builds anteriores...${NC}"
-rm -rf dist release
+rm -rf dist distribution/windows/* distribution/macos/*
 
 # Build da aplicação web
 echo -e "${YELLOW}🔨 Compilando aplicação...${NC}"
@@ -92,9 +95,11 @@ if [ $? -eq 0 ]; then
     echo ""
     echo -e "${GREEN}✅ Build concluído com sucesso!${NC}"
     echo ""
-    echo "📂 Os executáveis estão na pasta: release/"
+    echo "📂 Os executáveis estão nas pastas de distribuição:"
+    echo "   • distribution/windows/"
+    echo "   • distribution/macos/"
     echo ""
-    ls -lh release/ 2>/dev/null | grep -E '\.(exe|dmg|AppImage|deb|rpm|zip)' | awk '{print "   • " $9 " (" $5 ")"}'
+    find distribution -maxdepth 2 -type f | grep -E '\.(exe|dmg|AppImage|deb|rpm|zip|blockmap)$' | sed 's#^\./##' | awk '{print "   • " $0}'
     echo ""
     echo -e "${GREEN}🎉 Pronto para distribuição!${NC}"
 else

@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { io } from 'socket.io-client';
 import type { Person, Product, PurchaseItem, BrandingConfig } from '../types/index';
+
+type CSVRow = Record<string, unknown>;
 
 interface AppContextType {
   people: Person[];
@@ -20,8 +22,8 @@ interface AppContextType {
   getPersonById: (id: string) => Person | undefined;
   getProductById: (id: string) => Product | undefined;
   getProductByBarcode: (barcode: string) => Product | undefined;
-  importProductsFromCSV: (csvData: any[], onConflict: (product: any, existing: Product) => boolean) => Promise<{ imported: number; updated: number; errors: string[] }>;
-  importPeopleFromCSV: (csvData: any[]) => Promise<{ imported: number; errors: string[] }>;
+  importProductsFromCSV: (csvData: CSVRow[], onConflict: (product: CSVRow, existing: Product) => boolean) => Promise<{ imported: number; updated: number; errors: string[] }>;
+  importPeopleFromCSV: (csvData: CSVRow[]) => Promise<{ imported: number; errors: string[] }>;
   encerrarAcampamento: (payload: {
     balanceAction?: 'saque' | 'missionario';
     selectedPersonIds?: string[];
@@ -35,6 +37,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useApp = () => {
   const context = useContext(AppContext);
   if (!context) {
@@ -78,15 +81,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }))
   });
 
-  const applyBootstrapData = (data: { people?: Person[]; products?: Product[]; branding?: BrandingConfig }) => {
+  const applyBootstrapData = useCallback((data: { people?: Person[]; products?: Product[]; branding?: BrandingConfig }) => {
     setPeople((data.people || []).map(normalizePerson));
     setProducts(data.products || []);
     if (data.branding) {
       setBranding(normalizeBranding(data.branding));
     }
-  };
+  }, []);
 
-  const refreshBootstrap = async () => {
+  const refreshBootstrap = useCallback(async () => {
     const response = await fetch('/api/bootstrap');
     if (!response.ok) {
       throw new Error('Falha ao carregar dados iniciais');
@@ -95,7 +98,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const data = await response.json();
     applyBootstrapData(data);
     return data;
-  };
+  }, [applyBootstrapData]);
 
   const upsertPerson = (person: Person) => {
     const normalizedPerson = normalizePerson(person);
@@ -160,7 +163,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     };
 
     void load();
-  }, []);
+  }, [refreshBootstrap]);
 
   useEffect(() => {
     const socket = io(window.location.origin, {
@@ -179,7 +182,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [applyBootstrapData]);
 
   const addPerson = async (person: Omit<Person, 'id' | 'purchases'>) => {
     const response = await fetch('/api/people', {
@@ -328,8 +331,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const getProductByBarcode = (barcode: string) => products.find(p => p.barcode === barcode);
 
   const importProductsFromCSV = async (
-    csvData: any[], 
-    onConflict: (product: any, existing: Product) => boolean
+    csvData: CSVRow[],
+    onConflict: (product: CSVRow, existing: Product) => boolean
   ) => {
     const results = { imported: 0, updated: 0, errors: [] as string[] };
     
@@ -412,14 +415,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     return results;
   };
 
-  const importPeopleFromCSV = async (csvData: any[]) => {
+  const importPeopleFromCSV = async (csvData: CSVRow[]) => {
     const results = { imported: 0, errors: [] as string[] };
     
     for (let i = 0; i < csvData.length; i++) {
       const row = csvData[i];
       try {
         // Tenta encontrar o nome em diferentes possíveis campos
-        const name = row['Nome'] || row['name'] || row.nome || row.Name;
+        const rawName = row['Nome'] || row['name'] || row.nome || row.Name;
+        const name = rawName ? String(rawName).trim() : '';
         
         if (!name) {
           results.errors.push(`Linha ${i + 2}: Nome é obrigatório`);
@@ -450,9 +454,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
         // Add new person
         await addPerson({
-          name: name,
-          customId: customId || undefined,
-          initialDeposit: initialDeposit,
+          name,
+          customId: customId ? String(customId).trim() : undefined,
+          initialDeposit,
           photo: undefined,
           balance: initialDeposit
         });

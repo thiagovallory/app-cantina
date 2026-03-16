@@ -41,6 +41,11 @@ type ReportAsset = {
   fileName: string;
   data: Blob | string;
 };
+type AutoTableDoc = jsPDF & {
+  lastAutoTable?: {
+    finalY: number;
+  };
+};
 
 export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, onClose }) => {
   const { people, products, branding, encerrarAcampamento } = useApp();
@@ -356,8 +361,6 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 10;
-      let y = 20;
-
       const addFooter = () => {
         const totalPages = doc.getNumberOfPages();
         for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
@@ -373,7 +376,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
         doc.setTextColor(0, 0, 0);
       };
 
-      return { doc, margin, y, addFooter };
+      return { doc, margin, addFooter };
     };
 
     {
@@ -798,7 +801,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       headStyles: { fillColor: [66, 139, 202] }
     });
 
-    yPosition = (doc as any).lastAutoTable.finalY + 20;
+    yPosition = ((doc as AutoTableDoc).lastAutoTable?.finalY || yPosition) + 20;
 
     // Pessoas com saldo positivo (se houver)
     if (peopleWithPositiveBalance.length > 0) {
@@ -827,7 +830,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
         headStyles: { fillColor: [66, 139, 202] }
       });
 
-      yPosition = (doc as any).lastAutoTable.finalY + 20;
+      yPosition = ((doc as AutoTableDoc).lastAutoTable?.finalY || yPosition) + 20;
     }
 
     // PRODUTOS E VENDAS REALIZADAS
@@ -841,7 +844,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
     yPosition += 10;
 
     // Preparar dados dos produtos com vendas
-    const productsData: any[] = [];
+    const productsData: Array<Array<string | number>> = [];
     let totalGeralVendas = 0;
     let totalGeralLucro = 0;
 

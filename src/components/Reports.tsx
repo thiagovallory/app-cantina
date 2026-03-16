@@ -37,6 +37,12 @@ interface ReportsProps {
 
 type ReportType = 'pessoas-simples' | 'pessoas-detalhado' | 'sales-summary';
 type OutputFormat = 'csv' | 'pdf';
+type DetailedCsvRow = Record<string, string | number>;
+type PdfCellConfig = {
+  content: string;
+  colSpan: number;
+  styles: Record<string, unknown>;
+};
 
 export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
   const { people, products, branding } = useApp();
@@ -139,7 +145,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
   };
 
   const generatePeopleDetailedCSV = () => {
-    const csvData: any[] = [];
+    const csvData: DetailedCsvRow[] = [];
     
     sortedPeople.forEach(person => {
       csvData.push({
@@ -329,7 +335,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
     yPosition += 20;
 
     switch (selectedReport) {
-      case 'pessoas-simples':
+      case 'pessoas-simples': {
         doc.setFontSize(14);
         doc.text('Lista de Pessoas', margin, yPosition);
         yPosition += 10;
@@ -351,13 +357,14 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
           headStyles: { fillColor: [66, 139, 202] }
         });
         break;
+      }
 
-      case 'pessoas-detalhado':
+      case 'pessoas-detalhado': {
         doc.setFontSize(14);
         doc.text('Pessoas com Detalhes de Compras', margin, yPosition);
         yPosition += 10;
 
-        const detailedData: any[] = [];
+        const detailedData: Array<Array<string | PdfCellConfig>> = [];
         const personHeaderRows = new Set<number>();
         sortedPeople.forEach(person => {
           personHeaderRows.add(detailedData.length);
@@ -416,8 +423,9 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
           }
         });
         break;
+      }
 
-      case 'sales-summary':
+      case 'sales-summary': {
         const { rows, totalCost, totalSales, totalProfit } = buildSalesSummaryRows();
         yPosition -= 6;
         const salesSummaryTableWidth = 192;
@@ -487,6 +495,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
           }
         });
         break;
+      }
     }
 
     addPdfFooter();

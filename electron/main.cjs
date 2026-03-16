@@ -1,8 +1,13 @@
-const { app, BrowserWindow, Menu, shell } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
 const path = require('path');
+const { startServer, stopServer } = require('../server/src/index.js');
+
+app.setName('App Cantina');
 
 const isDev = process.env.ELECTRON_IS_DEV === 'true';
 const devOrigin = 'https://localhost:5173';
+const desktopOrigin = 'http://127.0.0.1:3000';
+let serverStartedByElectron = false;
 
 if (isDev) {
   app.commandLine.appendSwitch('ignore-certificate-errors');
@@ -20,15 +25,17 @@ function createWindow() {
       webSecurity: false, // Necessário para câmera funcionar
     },
     icon: path.join(__dirname, 'assets', 'icon.png'), // Opcional: adicione um ícone
+    backgroundColor: '#edf3f8',
+    title: 'App Cantina',
     titleBarStyle: 'default',
     show: false
   });
 
   // Carregar a aplicação
-  const startUrl = isDev 
+  const startUrl = isDev
     ? devOrigin
-    : `file://${path.join(__dirname, '../dist/index.html')}`;
-    
+    : desktopOrigin;
+
   mainWindow.loadURL(startUrl);
 
   // Mostrar janela quando estiver pronta
@@ -50,6 +57,15 @@ function createWindow() {
   return mainWindow;
 }
 
+async function ensureDesktopServer() {
+  if (isDev) {
+    return;
+  }
+
+  await startServer(3000);
+  serverStartedByElectron = true;
+}
+
 // Menu personalizado
 function createMenu() {
   const template = [
@@ -58,8 +74,17 @@ function createMenu() {
       submenu: [
         {
           label: 'Sobre',
-          click: () => {
-            // Pode abrir um modal "sobre" aqui
+          click: async () => {
+            await dialog.showMessageBox({
+              type: 'info',
+              title: 'Sobre o App Cantina',
+              message: 'App Cantina',
+              detail: [
+                'Sistema de gestao de cantina para eventos, retiros e acampamentos.',
+                `Versao: ${app.getVersion()}`,
+                'Distribuicao desktop para Windows e macOS.'
+              ].join('\n')
+            });
           }
         },
         { type: 'separator' },
@@ -111,7 +136,8 @@ function createMenu() {
 }
 
 // Evento quando o Electron terminou de inicializar
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await ensureDesktopServer();
   createWindow();
   createMenu();
 
@@ -120,6 +146,9 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+}).catch((error) => {
+  console.error('Falha ao iniciar o aplicativo desktop:', error);
+  app.quit();
 });
 
 // Sair quando todas as janelas forem fechadas (exceto no macOS)
@@ -127,6 +156,23 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', async (event) => {
+  if (!serverStartedByElectron) {
+    return;
+  }
+
+  event.preventDefault();
+  serverStartedByElectron = false;
+
+  try {
+    await stopServer();
+  } catch (error) {
+    console.error('Falha ao encerrar o servidor interno:', error);
+  }
+
+  app.quit();
 });
 
 // Configurações de segurança

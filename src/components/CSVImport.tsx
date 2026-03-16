@@ -31,13 +31,20 @@ interface CSVImportProps {
   type: 'products' | 'people';
 }
 
+interface ImportResults {
+  success: boolean;
+  imported?: number;
+  updated?: number;
+  errors?: string[];
+}
+
 // ConflictDialog removed - using window.confirm instead for simplicity
 
 export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type }) => {
   const { importProductsFromCSV, importPeopleFromCSV } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<ImportResults | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const processFile = (file: File) => {
@@ -68,21 +75,23 @@ export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type }) => 
 
         try {
           let importResults;
+          const rows = result.data as Record<string, unknown>[];
           
           if (type === 'products') {
             importResults = await importProductsFromCSV(
-              result.data, 
+              rows,
               (product, existing) => {
+                const nextPrice = parseFloat(String(product.price ?? '0').replace(',', '.'));
                 return window.confirm(
                   `Produto "${existing.name}" (código ${existing.barcode}) já existe.\n` +
                   `Existente: R$ ${existing.price.toFixed(2)} - Estoque: ${existing.stock}\n` +
-                  `Novo: R$ ${parseFloat(product.price).toFixed(2)} - Estoque: ${product.stock || 0}\n\n` +
+                  `Novo: R$ ${nextPrice.toFixed(2)} - Estoque: ${String(product.stock ?? 0)}\n\n` +
                   'Deseja atualizar com os dados do CSV?'
                 );
               }
             );
           } else {
-            importResults = await importPeopleFromCSV(result.data);
+            importResults = await importPeopleFromCSV(rows);
           }
 
           setResults({
@@ -242,16 +251,16 @@ export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type }) => 
                       Importação Concluída!
                     </Typography>
                     <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-                      {results.imported > 0 && (
+                      {(results.imported ?? 0) > 0 && (
                         <Chip 
-                          label={`${results.imported} ${type === 'products' ? 'produtos' : 'pessoas'} importados`}
+                          label={`${results.imported ?? 0} ${type === 'products' ? 'produtos' : 'pessoas'} importados`}
                           color="success"
                           size="small"
                         />
                       )}
-                      {results.updated > 0 && (
+                      {(results.updated ?? 0) > 0 && (
                         <Chip 
-                          label={`${results.updated} produtos atualizados`}
+                          label={`${results.updated ?? 0} produtos atualizados`}
                           color="info"
                           size="small"
                         />

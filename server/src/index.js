@@ -6,7 +6,7 @@ const { Server } = require('socket.io');
 const { db, getBootstrapData } = require('./db');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
 const httpServer = http.createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -14,6 +14,7 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   },
 });
+let startedServer = null;
 
 app.use(cors());
 app.use(express.json());
@@ -740,7 +741,6 @@ app.get(/.*/, (req, res) => {
 });
 
 // Middleware de erro
-// eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: 'Erro interno no servidor' });
@@ -750,6 +750,49 @@ io.on('connection', (socket) => {
   socket.emit('bootstrap:update', getBootstrapData());
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`Servidor App Cantina rodando em http://localhost:${PORT}`);
-});
+function startServer(port = PORT) {
+  return new Promise((resolve, reject) => {
+    if (startedServer) {
+      return resolve(startedServer);
+    }
+
+    httpServer.once('error', reject);
+    httpServer.listen(port, () => {
+      httpServer.off('error', reject);
+      startedServer = httpServer;
+      console.log(`Servidor App Cantina rodando em http://localhost:${port}`);
+      resolve(httpServer);
+    });
+  });
+}
+
+function stopServer() {
+  return new Promise((resolve, reject) => {
+    if (!startedServer) {
+      return resolve();
+    }
+
+    startedServer.close((error) => {
+      if (error) {
+        return reject(error);
+      }
+
+      startedServer = null;
+      resolve();
+    });
+  });
+}
+
+module.exports = {
+  app,
+  io,
+  startServer,
+  stopServer
+};
+
+if (require.main === module) {
+  startServer().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

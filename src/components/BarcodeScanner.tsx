@@ -19,8 +19,10 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const currentVideo = videoRef.current;
+
     const startScanner = async () => {
-      if (!videoRef.current) return;
+      if (!currentVideo) return;
 
       try {
         hasScannedRef.current = false;
@@ -58,7 +60,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
 
         controlsRef.current = await reader.decodeFromConstraints(
           constraints,
-          videoRef.current,
+          currentVideo,
           (result) => {
             const scannedText = result?.getText()?.trim();
             if (!scannedText || hasScannedRef.current) return;
@@ -90,8 +92,8 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
     return () => {
       controlsRef.current?.stop();
       BrowserMultiFormatReader.releaseAllStreams();
-      if (videoRef.current) {
-        BrowserMultiFormatReader.cleanVideoSource(videoRef.current);
+      if (currentVideo) {
+        BrowserMultiFormatReader.cleanVideoSource(currentVideo);
       }
     };
   }, [onScan, selectedDeviceId]);

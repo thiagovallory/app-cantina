@@ -2,6 +2,9 @@
   "name": "app-cantina",
   "private": true,
   "version": "1.0.0",
+  "description": "Aplicativo de gestao de cantina para eventos, acampamentos e retiros.",
+  "author": "Thiago Vallory",
+  "license": "UNLICENSED",
   "type": "module",
   "main": "electron/main.cjs",
   "homepage": "./",
@@ -15,8 +18,9 @@
     "electron-dev": "ELECTRON_IS_DEV=true electron .",
     "electron-pack": "npm run build && electron-builder",
     "dist": "npm run build && electron-builder --publish=never",
-    "dist-win": "npm run build && electron-builder --win --publish=never",
-    "dist-mac": "npm run build && electron-builder --mac --publish=never",
+    "dist-win": "npm run build && electron-builder --win nsis --x64 --publish=never --config.directories.output=distribution/windows",
+    "dist-win-arm64": "npm run build && electron-builder --win nsis --arm64 --publish=never --config.directories.output=distribution/windows",
+    "dist-mac": "npm run build && electron-builder --mac dmg --publish=never --config.directories.output=distribution/macos",
     "dist-linux": "npm run build && electron-builder --linux --publish=never"
   },
   "dependencies": {
@@ -50,6 +54,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "icon-gen": "^5.0.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.13",
     "typescript": "~5.8.3",
@@ -59,6 +64,9 @@
   "build": {
     "appId": "com.cantina.app",
     "productName": "App Cantina",
+    "copyright": "Copyright © 2026 Thiago Vallory",
+    "compression": "maximum",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
     "directories": {
       "output": "release"
     },
@@ -82,7 +90,9 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "electron/assets/icon.ico"
+      "icon": "electron/assets/icon.ico",
+      "verifyUpdateCodeSignature": false,
+      "requestedExecutionLevel": "asInvoker"
     },
     "linux": {
       "target": "AppImage",
@@ -93,7 +103,13 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "App Cantina",
+      "uninstallDisplayName": "App Cantina",
+      "installerIcon": "electron/assets/icon.ico",
+      "uninstallerIcon": "electron/assets/icon.ico",
+      "installerHeaderIcon": "electron/assets/icon.ico",
+      "menuCategory": true
     }
   }
 }

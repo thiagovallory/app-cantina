@@ -19,6 +19,28 @@ const https =
 export default defineConfig({
   plugins: [react()],
   base: './', // Importante para Electron funcionar com paths relativos
+  build: {
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined
+          }
+
+          if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('jszip')) {
+            return 'reports'
+          }
+
+          if (id.includes('@zxing') || id.includes('qrcode')) {
+            return 'scanner'
+          }
+
+          return 'vendor'
+        },
+      },
+    },
+  },
   server: {
     https,
     host: '0.0.0.0', // Expõe o servidor na rede

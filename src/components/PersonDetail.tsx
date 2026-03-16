@@ -22,6 +22,7 @@ import {
   DialogContent,
   DialogActions
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import {
   ArrowBack,
   Person as PersonIcon,
@@ -43,7 +44,7 @@ import {
   PersonRemove as DeletePersonIcon
 } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
-import type { Person } from '../types/index';
+import type { Person, PurchaseItem } from '../types/index';
 
 interface PersonDetailProps {
   person: Person;
@@ -433,7 +434,7 @@ export const PersonDetail: React.FC<PersonDetailProps> = ({ person, onBack }) =>
     setDeletePersonDialogOpen(false);
   };
 
-  const handleQuantityChange = (purchaseId: string, productId: string, item: any, delta: number) => {
+  const handleQuantityChange = (purchaseId: string, productId: string, item: PurchaseItem, delta: number) => {
     const newQuantity = item.quantity + delta;
     if (newQuantity <= 0) {
       handleDeleteClick('item', purchaseId, productId);
@@ -706,7 +707,8 @@ export const PersonDetail: React.FC<PersonDetailProps> = ({ person, onBack }) =>
                 const isEncerramentoMissionario = item.productName.includes('Saldo para Missionário');
 
                 // Determina ícone e cor baseado no tipo
-                let icon, chipColor;
+                let icon: React.ReactNode;
+                let chipColor: ChipProps['color'];
                 if (isWithdrawal) {
                   icon = <AccountBalance color="error" />;
                   chipColor = "error";
@@ -742,7 +744,7 @@ export const PersonDetail: React.FC<PersonDetailProps> = ({ person, onBack }) =>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Chip 
                             label={formatCurrency(purchase.total)}
-                            color={chipColor as any}
+                            color={chipColor}
                             sx={{ fontWeight: 600 }}
                           />
                           <IconButton 

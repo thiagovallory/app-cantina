@@ -26,14 +26,18 @@ import {
 } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
 import { BarcodeScanner } from './BarcodeScanner';
+import type { Product } from '../types/index';
 
 interface ProductListProps {
   headerAction?: React.ReactNode;
 }
 
+type EditableField = 'name' | 'barcode' | 'price' | 'stock' | 'costPrice' | 'purchasedQuantity';
+type EditableValue = string | number | undefined;
+
 export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
   const { products, updateProduct, deleteProduct, getProductByBarcode } = useApp();
-  const [editingField, setEditingField] = useState<{productId: string; field: string} | null>(null);
+  const [editingField, setEditingField] = useState<{productId: string; field: EditableField} | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
@@ -93,7 +97,7 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
     );
   }, [products, searchTerm]);
 
-  const handleFieldClick = (productId: string, field: string, currentValue: any) => {
+  const handleFieldClick = (productId: string, field: EditableField, currentValue: EditableValue) => {
     setEditingField({ productId, field });
     
     if (field === 'price' || field === 'costPrice') {
@@ -101,7 +105,7 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
     } else if (field === 'stock' || field === 'purchasedQuantity') {
       setEditValue(currentValue ? currentValue.toString() : '');
     } else {
-      setEditValue(currentValue || '');
+      setEditValue(String(currentValue ?? ''));
     }
   };
 
@@ -109,7 +113,7 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
     if (!editingField) return;
     
     const { productId, field } = editingField;
-    let value: any = editValue.trim();
+    let value: EditableValue = editValue.trim();
     
     if (field === 'price' || field === 'costPrice') {
       if (value === '') {
@@ -141,10 +145,10 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
         value = undefined;
       } else {
         // Verificar se já existe outro produto com este código de barras
-        const existingProduct = products.find(p => 
-          p.id !== productId && // Não verificar o próprio produto
-          p.barcode === value
-        );
+          const existingProduct = products.find((p: Product) =>
+            p.id !== productId && // Não verificar o próprio produto
+            p.barcode === value
+          );
         
         if (existingProduct) {
           showError(
