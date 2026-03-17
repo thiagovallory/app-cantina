@@ -1,6 +1,5 @@
 const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
 const path = require('path');
-const { startServer, stopServer } = require('../server/src/index.js');
 
 app.setName('App Cantina');
 
@@ -8,6 +7,7 @@ const isDev = process.env.ELECTRON_IS_DEV === 'true';
 const devOrigin = 'https://localhost:5173';
 const desktopOrigin = 'http://127.0.0.1:3000';
 let serverStartedByElectron = false;
+let stopServer;
 
 if (isDev) {
   app.commandLine.appendSwitch('ignore-certificate-errors');
@@ -62,7 +62,12 @@ async function ensureDesktopServer() {
     return;
   }
 
-  await startServer(3000);
+  process.env.APP_CANTINA_DATA_DIR = path.join(app.getPath('userData'), 'data');
+  const serverEntry = path.join(process.resourcesPath, 'server', 'src', 'index.js');
+  const serverModule = require(serverEntry);
+
+  stopServer = serverModule.stopServer;
+  await serverModule.startServer(3000);
   serverStartedByElectron = true;
 }
 

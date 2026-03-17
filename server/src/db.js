@@ -1,7 +1,13 @@
 const path = require('path');
+const fs = require('fs');
 const Database = require('better-sqlite3');
 
-const dbPath = path.join(__dirname, '..', 'data', 'cantina.db');
+const defaultDataDir = path.join(__dirname, '..', 'data');
+const configuredDataDir = process.env.APP_CANTINA_DATA_DIR || defaultDataDir;
+
+fs.mkdirSync(configuredDataDir, { recursive: true });
+
+const dbPath = path.join(configuredDataDir, 'cantina.db');
 
 const db = new Database(dbPath);
 

@@ -75,6 +75,26 @@
       "electron/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "server/src",
+        "to": "server/src",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "server/node_modules",
+        "to": "server/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "server/package.json",
+        "to": "server/package.json"
+      }
+    ],
     "mac": {
       "category": "public.app-category.business",
       "icon": "electron/assets/icon.icns",
