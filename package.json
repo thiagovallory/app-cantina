@@ -29,6 +29,9 @@
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
     "@zxing/browser": "^0.1.5",
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "jspdf": "^3.0.2",
     "jspdf-autotable": "^5.0.2",
     "jszip": "^3.10.1",
@@ -38,6 +41,7 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2",
+    "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
@@ -73,27 +77,8 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "server/src/**/*",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "server/src",
-        "to": "server/src",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "server/node_modules",
-        "to": "server/node_modules",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "server/package.json",
-        "to": "server/package.json"
-      }
     ],
     "mac": {
       "category": "public.app-category.business",

@@ -63,8 +63,7 @@ async function ensureDesktopServer() {
   }
 
   process.env.APP_CANTINA_DATA_DIR = path.join(app.getPath('userData'), 'data');
-  const serverEntry = path.join(process.resourcesPath, 'server', 'src', 'index.js');
-  const serverModule = require(serverEntry);
+  const serverModule = require('../server/src/index.js');
 
   stopServer = serverModule.stopServer;
   await serverModule.startServer(3000);
