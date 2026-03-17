@@ -74,10 +74,15 @@ export const BrandingSettings: React.FC<BrandingSettingsProps> = ({ open, onClos
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Criar URL do arquivo local
-      const fileUrl = URL.createObjectURL(file);
-      setLogoUrl(fileUrl);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        setLogoUrl(result);
+      };
+      reader.readAsDataURL(file);
     }
+
+    event.target.value = '';
   };
 
   const handleUseDefaultLogo = () => {
@@ -224,7 +229,7 @@ export const BrandingSettings: React.FC<BrandingSettingsProps> = ({ open, onClos
                         onChange={(e) => setLogoUrl(e.target.value)}
                         fullWidth
                         variant="outlined"
-                        helperText="Caminho para o arquivo de imagem (ex: /logo.png)"
+                        helperText="Voce pode usar uma URL/caminho fixo ou enviar uma imagem para salvar no app"
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             borderRadius: 2

@@ -275,10 +275,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       // Gerar todos os relatórios em CSV
       await generateFinalReportsCSV(reportAssets, reportsGenerated);
 
-      // Gerar relatórios auxiliares em PDF
-      await generateSupportReportsPDF(reportAssets, reportsGenerated);
-      
-      // Gerar todos os relatórios em PDF  
+      // Gerar dossie final em PDF com todas as secoes para impressao
       await generateFinalReportsPDF(reportAssets, reportsGenerated);
 
       await downloadReportsZip(reportAssets);
@@ -349,324 +346,108 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
     reportsGenerated.push(`Resumo de Vendas (R$ ${totalSales.toFixed(2)})`);
   };
 
-  const generateSupportReportsPDF = async (reportAssets: ReportAsset[], reportsGenerated: string[]) => {
-    const timestamp = getTimestamp();
-    const orgSlug = getOrgSlug();
-    const peopleSimpleData = buildPeopleSimpleData();
-    const peopleDetailedData = buildPeopleDetailedData();
-    const productsData = buildProductSummaryData();
-    const { rows: salesRows, totalCost, totalSales, totalProfit } = buildSalesSummaryData();
-    const createBaseDoc = (fileName: string) => {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 10;
-      const addFooter = () => {
-        const totalPages = doc.getNumberOfPages();
-        for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
-          doc.setPage(pageNumber);
-          doc.setDrawColor(220, 220, 220);
-          doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(110, 110, 110);
-          doc.text(fileName, margin, pageHeight - 6);
-          doc.text(`${pageNumber}/${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
-        }
-        doc.setTextColor(0, 0, 0);
-      };
-
-      return { doc, margin, addFooter };
-    };
-
-    {
-      const fileName = `${orgSlug}-encerramento-pessoas-simples-${timestamp}.pdf`;
-      const { doc, margin, addFooter } = createBaseDoc(fileName);
-      let y = 20;
-      if (branding.showLogo && branding.logoUrl) {
-        try {
-          const logoUrl = branding.logoUrl.startsWith('http') || branding.logoUrl.startsWith('blob:')
-            ? branding.logoUrl
-            : window.location.origin + branding.logoUrl;
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = logoUrl;
-          });
-          const maxLogoHeight = 35;
-          const maxLogoWidth = 60;
-          const imgRatio = img.width / img.height;
-          let logoWidth = maxLogoWidth;
-          let logoHeight = maxLogoWidth / imgRatio;
-          if (logoHeight > maxLogoHeight) {
-            logoHeight = maxLogoHeight;
-            logoWidth = maxLogoHeight * imgRatio;
-          }
-          const logoX = (doc.internal.pageSize.getWidth() - logoWidth) / 2;
-          doc.addImage(img, 'PNG', logoX, y, logoWidth, logoHeight);
-          y += logoHeight + 10;
-        } catch (error) {
-          console.warn('Nao foi possivel carregar o logo:', error);
-        }
-      }
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(cleanTextForPDF(branding.organizationName), doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 10;
-      doc.setFontSize(15);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Pessoas - Lista Simples', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 8;
-      doc.setFontSize(11);
-      doc.text(new Date().toLocaleDateString('pt-BR'), doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 12;
-      autoTable(doc, {
-        head: [['ID', 'Nome', 'Depósito Inicial', 'Total Compras', 'Total Gasto', 'Saldo Final', 'Destino Saldo']],
-        body: peopleSimpleData.map((row) => [
-          String(row['ID']),
-          String(row['Nome']),
-          `R$ ${row['Depósito Inicial']}`,
-          String(row['Total Compras']),
-          `R$ ${row['Total Gasto']}`,
-          `R$ ${row['Saldo Final']}`,
-          String(row['Destino Saldo'])
-        ]),
-        startY: y,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [66, 139, 202] }
-      });
-      addFooter();
-      reportAssets.push({ fileName, data: doc.output('blob') });
-      reportsGenerated.push('Pessoas Simples PDF');
-    }
-
-    {
-      const fileName = `${orgSlug}-encerramento-pessoas-completo-${timestamp}.pdf`;
-      const { doc, margin, addFooter } = createBaseDoc(fileName);
-      let y = 20;
-      if (branding.showLogo && branding.logoUrl) {
-        try {
-          const logoUrl = branding.logoUrl.startsWith('http') || branding.logoUrl.startsWith('blob:')
-            ? branding.logoUrl
-            : window.location.origin + branding.logoUrl;
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = logoUrl;
-          });
-          const maxLogoHeight = 35;
-          const maxLogoWidth = 60;
-          const imgRatio = img.width / img.height;
-          let logoWidth = maxLogoWidth;
-          let logoHeight = maxLogoWidth / imgRatio;
-          if (logoHeight > maxLogoHeight) {
-            logoHeight = maxLogoHeight;
-            logoWidth = maxLogoHeight * imgRatio;
-          }
-          const logoX = (doc.internal.pageSize.getWidth() - logoWidth) / 2;
-          doc.addImage(img, 'PNG', logoX, y, logoWidth, logoHeight);
-          y += logoHeight + 10;
-        } catch (error) {
-          console.warn('Nao foi possivel carregar o logo:', error);
-        }
-      }
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(cleanTextForPDF(branding.organizationName), doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 10;
-      doc.setFontSize(15);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Pessoas - Com Historico', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 8;
-      doc.setFontSize(11);
-      doc.text(new Date().toLocaleDateString('pt-BR'), doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 12;
-      autoTable(doc, {
-        head: [['ID', 'Nome', 'Produto', 'QTD', 'Valor', 'Data', 'Hora', 'Saldo Final', 'Destino']],
-        body: peopleDetailedData.map((row) => [
-          String(row['ID']),
-          String(row['Nome']),
-          cleanTextForPDF(String(row['Produto'])),
-          String(row['QTD']),
-          row['Valor'] ? `R$ ${row['Valor']}` : '',
-          String(row['Data']),
-          String(row['Hora']),
-          `R$ ${row['Saldo Final']}`,
-          String(row['Destino Saldo'])
-        ]),
-        startY: y,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [66, 139, 202] }
-      });
-      addFooter();
-      reportAssets.push({ fileName, data: doc.output('blob') });
-      reportsGenerated.push('Pessoas Completo PDF');
-    }
-
-    {
-      const fileName = `${orgSlug}-encerramento-produtos-${timestamp}.pdf`;
-      const { doc, margin, addFooter } = createBaseDoc(fileName);
-      let y = 20;
-      if (branding.showLogo && branding.logoUrl) {
-        try {
-          const logoUrl = branding.logoUrl.startsWith('http') || branding.logoUrl.startsWith('blob:')
-            ? branding.logoUrl
-            : window.location.origin + branding.logoUrl;
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = logoUrl;
-          });
-          const maxLogoHeight = 35;
-          const maxLogoWidth = 60;
-          const imgRatio = img.width / img.height;
-          let logoWidth = maxLogoWidth;
-          let logoHeight = maxLogoWidth / imgRatio;
-          if (logoHeight > maxLogoHeight) {
-            logoHeight = maxLogoHeight;
-            logoWidth = maxLogoHeight * imgRatio;
-          }
-          const logoX = (doc.internal.pageSize.getWidth() - logoWidth) / 2;
-          doc.addImage(img, 'PNG', logoX, y, logoWidth, logoHeight);
-          y += logoHeight + 10;
-        } catch (error) {
-          console.warn('Nao foi possivel carregar o logo:', error);
-        }
-      }
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(cleanTextForPDF(branding.organizationName), doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 10;
-      doc.setFontSize(15);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Produtos', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 8;
-      doc.setFontSize(11);
-      doc.text(new Date().toLocaleDateString('pt-BR'), doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 12;
-      autoTable(doc, {
-        head: [['Código', 'Produto', 'Qtd Comprada', 'Custo', 'Valor Unitário', 'Preço', 'Estoque']],
-        body: productsData.map((row) => [
-          String(row['Código']),
-          cleanTextForPDF(String(row['Produto'])),
-          String(row['Qtd Comprada']),
-          `R$ ${row['Custo']}`,
-          `R$ ${row['Valor Unitário']}`,
-          `R$ ${row['Preço']}`,
-          String(row['Estoque'])
-        ]),
-        startY: y,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [66, 139, 202] }
-      });
-      addFooter();
-      reportAssets.push({ fileName, data: doc.output('blob') });
-      reportsGenerated.push('Produtos PDF');
-    }
-
-    {
-      const fileName = `${orgSlug}-encerramento-resumo-vendas-${timestamp}.pdf`;
-      const { doc, margin, addFooter } = createBaseDoc(fileName);
-      let y = 20;
-      if (branding.showLogo && branding.logoUrl) {
-        try {
-          const logoUrl = branding.logoUrl.startsWith('http') || branding.logoUrl.startsWith('blob:')
-            ? branding.logoUrl
-            : window.location.origin + branding.logoUrl;
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = logoUrl;
-          });
-          const maxLogoHeight = 35;
-          const maxLogoWidth = 60;
-          const imgRatio = img.width / img.height;
-          let logoWidth = maxLogoWidth;
-          let logoHeight = maxLogoWidth / imgRatio;
-          if (logoHeight > maxLogoHeight) {
-            logoHeight = maxLogoHeight;
-            logoWidth = maxLogoHeight * imgRatio;
-          }
-          const logoX = (doc.internal.pageSize.getWidth() - logoWidth) / 2;
-          doc.addImage(img, 'PNG', logoX, y, logoWidth, logoHeight);
-          y += logoHeight + 10;
-        } catch (error) {
-          console.warn('Nao foi possivel carregar o logo:', error);
-        }
-      }
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text(cleanTextForPDF(branding.organizationName), doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 10;
-      doc.setFontSize(15);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Resumo de Vendas', doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 8;
-      doc.setFontSize(11);
-      doc.text(new Date().toLocaleDateString('pt-BR'), doc.internal.pageSize.getWidth() / 2, y, { align: 'center' });
-      y += 12;
-      autoTable(doc, {
-        head: [['Código', 'Produto', 'QTD', 'Custo', 'V. Unit.', 'V. Vend.', 'QTD V.', 'T. Vend.', 'Estq.', 'Lucro']],
-        body: salesRows.map((row) => [
-          String(row['Código']),
-          cleanTextForPDF(String(row['Produto'])),
-          String(row['QTD']),
-          `R$ ${row['Custo']}`,
-          `R$ ${row['V. Unit.']}`,
-          `R$ ${row['V. Vend.']}`,
-          String(row['QTD V.']),
-          `R$ ${row['T. Vend.']}`,
-          String(row['Estq.']),
-          `R$ ${row['Lucro']}`
-        ]),
-        startY: y + 14,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [66, 139, 202] }
-      });
-      doc.setFontSize(10);
-      doc.text(`Custo Total: R$ ${totalCost.toFixed(2)}   Faturamento: R$ ${totalSales.toFixed(2)}   Lucro Total: R$ ${totalProfit.toFixed(2)}`, margin, y);
-      addFooter();
-      reportAssets.push({ fileName, data: doc.output('blob') });
-      reportsGenerated.push('Resumo de Vendas PDF');
-    }
-  };
 
   const generateFinalReportsPDF = async (reportAssets: ReportAsset[], reportsGenerated: string[]) => {
     const doc = new jsPDF();
     const timestamp = new Date().toLocaleDateString('pt-BR');
-    const margin = 10;
+    const margin = 12;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     let yPosition = 20;
     const orgSlug = branding.organizationName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    const fileName = `${orgSlug}-encerramento-final-${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `${orgSlug}-encerramento-dossie-final-${new Date().toISOString().split('T')[0]}.pdf`;
+    const palette = {
+      ink: [22, 33, 52] as [number, number, number],
+      muted: [92, 104, 128] as [number, number, number],
+      accent: [33, 74, 128] as [number, number, number],
+      accentSoft: [233, 240, 248] as [number, number, number],
+      line: [217, 224, 232] as [number, number, number],
+      soft: [246, 248, 251] as [number, number, number]
+    };
+    const formatCurrency = (value: number) => `R$ ${value.toFixed(2)}`;
+    const formatDateTime = () => new Date().toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
     const addPdfFooter = () => {
       const totalPages = doc.getNumberOfPages();
 
       for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
         doc.setPage(pageNumber);
-        doc.setDrawColor(220, 220, 220);
+        doc.setDrawColor(...palette.line);
         doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(110, 110, 110);
+        doc.setTextColor(...palette.muted);
         doc.text(fileName, margin, pageHeight - 6);
         doc.text(`${pageNumber}/${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
       }
 
       doc.setTextColor(0, 0, 0);
+    };
+    const getTableTheme = (fontSize = 8.6) => ({
+      margin: { left: margin, right: margin },
+      styles: {
+        fontSize,
+        cellPadding: 2,
+        lineWidth: 0.2,
+        lineColor: palette.line,
+        textColor: palette.ink
+      },
+      headStyles: {
+        fillColor: palette.accent,
+        textColor: [255, 255, 255] as [number, number, number],
+        fontStyle: 'bold' as const
+      },
+      alternateRowStyles: {
+        fillColor: palette.soft
+      }
+    });
+    const drawPageHeader = (title: string, subtitle?: string) => {
+      doc.setFillColor(...palette.ink);
+      doc.rect(0, 0, pageWidth, 14, 'F');
+      doc.setTextColor(...palette.ink);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text(title, margin, 28);
+      if (subtitle) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...palette.muted);
+        doc.text(subtitle, margin, 34);
+      }
+      return 42;
+    };
+    const drawSummaryCards = (cards: Array<{ label: string; value: string }>, startY: number) => {
+      const gap = 4;
+      const cardWidth = (pageWidth - (margin * 2) - gap) / 2;
+      const cardHeight = 18;
+
+      cards.forEach((card, index) => {
+        const column = index % 2;
+        const row = Math.floor(index / 2);
+        const x = margin + (column * (cardWidth + gap));
+        const y = startY + (row * (cardHeight + gap));
+
+        doc.setDrawColor(...palette.line);
+        doc.setFillColor(...palette.accentSoft);
+        doc.roundedRect(x, y, cardWidth, cardHeight, 3, 3, 'FD');
+
+        doc.setTextColor(...palette.muted);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text(card.label.toUpperCase(), x + 4, y + 6);
+
+        doc.setTextColor(...palette.ink);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text(card.value, x + 4, y + 13);
+      });
+
+      return startY + (Math.ceil(cards.length / 2) * (cardHeight + gap));
     };
     const totalSaque = peopleWithPositiveBalance
       .filter((person) => getPersonBalanceAction(person.id) === 'saque')
@@ -733,6 +514,9 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
     let grandTotalSales = 0;
     let grandTotalProfit = 0;
     let totalMissionaryOffers = 0;
+    const peopleSimpleData = buildPeopleSimpleData();
+    const peopleDetailedData = buildPeopleDetailedData();
+    const productSummaryData = buildProductSummaryData();
 
     people.forEach(person => {
       person.purchases.forEach(purchase => {
@@ -774,10 +558,78 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       });
     });
 
-    // Resumo geral
-    doc.setFontSize(14);
-    doc.text('RESUMO GERAL', margin, yPosition);
-    yPosition += 15;
+    doc.setFillColor(...palette.ink);
+    doc.rect(0, 0, pageWidth, 42, 'F');
+    doc.setFillColor(...palette.accentSoft);
+    doc.rect(0, 42, pageWidth, pageHeight - 42, 'F');
+
+    let coverY = 26;
+    if (branding.showLogo && branding.logoUrl) {
+      try {
+        const logoUrl = branding.logoUrl.startsWith('http') || branding.logoUrl.startsWith('blob:') || branding.logoUrl.startsWith('data:')
+          ? branding.logoUrl
+          : window.location.origin + branding.logoUrl;
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = logoUrl;
+        });
+
+        const imgRatio = img.width / img.height;
+        let logoHeight = 30;
+        let logoWidth = logoHeight * imgRatio;
+        if (logoWidth > 58) {
+          logoWidth = 58;
+          logoHeight = logoWidth / imgRatio;
+        }
+
+        doc.addImage(img, 'PNG', (pageWidth - logoWidth) / 2, 56, logoWidth, logoHeight);
+        coverY = 56 + logoHeight + 14;
+      } catch (error) {
+        console.warn('Não foi possível carregar o logo:', error);
+      }
+    } else {
+      coverY = 72;
+    }
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('APP CANTINA', pageWidth / 2, 18, { align: 'center' });
+    doc.setTextColor(...palette.ink);
+    doc.setFontSize(22);
+    doc.text(cleanTextForPDF(branding.organizationName), pageWidth / 2, coverY, { align: 'center' });
+    coverY += 12;
+    doc.setFontSize(19);
+    doc.text('DOSSIE FINAL DE ENCERRAMENTO', pageWidth / 2, coverY, { align: 'center' });
+    coverY += 10;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(...palette.muted);
+    doc.text(`Documento consolidado para conferencia e impressao • ${formatDateTime()}`, pageWidth / 2, coverY, { align: 'center' });
+
+    coverY += 16;
+    coverY = drawSummaryCards([
+      { label: 'Pessoas cadastradas', value: String(people.length) },
+      { label: 'Produtos cadastrados', value: String(products.length) },
+      { label: 'Saldo restante', value: formatCurrency(totalPositiveBalance) },
+      { label: 'Faturamento em vendas', value: formatCurrency(grandTotalSales) },
+      { label: 'Destino saque', value: `${saqueCount} pessoas • ${formatCurrency(totalSaque)}` },
+      { label: 'Destino missionario', value: `${missionarioCount} pessoas • ${formatCurrency(totalMissionario)}` }
+    ], coverY);
+
+    doc.setDrawColor(...palette.line);
+    doc.line(margin, coverY + 2, pageWidth - margin, coverY + 2);
+    doc.setFontSize(10);
+    doc.setTextColor(...palette.muted);
+    doc.text('Conteudo: resumo executivo, saldos finais, pessoas, historico, produtos e vendas.', pageWidth / 2, coverY + 10, { align: 'center' });
+
+    doc.addPage();
+    yPosition = drawPageHeader('Resumo Executivo', 'Visao geral do encerramento do acampamento');
 
     const summaryData = [
       ['Total de Pessoas', people.length.toString()],
@@ -796,28 +648,26 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       head: [['Item', 'Valor']],
       body: summaryData,
       startY: yPosition,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 10 },
-      headStyles: { fillColor: [66, 139, 202] }
+      ...getTableTheme(9.4),
+      columnStyles: {
+        0: { cellWidth: 78 },
+        1: { halign: 'right' }
+      }
     });
 
     yPosition = ((doc as AutoTableDoc).lastAutoTable?.finalY || yPosition) + 20;
 
-    // Pessoas com saldo positivo (se houver)
     if (peopleWithPositiveBalance.length > 0) {
-      if (yPosition > 250) {
-        doc.addPage();
-        yPosition = 25;
-      }
-
-      doc.setFontSize(14);
-      doc.text('PESSOAS COM SALDO POSITIVO', margin, yPosition);
-      yPosition += 10;
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...palette.ink);
+      doc.text('Pessoas com saldo positivo', margin, yPosition);
+      yPosition += 8;
 
       const balanceData = peopleWithPositiveBalance.map(person => [
         person.customId || '',
         person.name,
-        `R$ ${person.balance.toFixed(2)}`,
+        formatCurrency(person.balance),
         getPersonBalanceAction(person.id) === 'saque' ? 'Saque' : 'Missionário'
       ]);
 
@@ -825,25 +675,101 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
         head: [['ID', 'Nome', 'Saldo', 'Destino']],
         body: balanceData,
         startY: yPosition,
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [66, 139, 202] }
+        ...getTableTheme(9),
+        columnStyles: {
+          0: { cellWidth: 22 },
+          1: { cellWidth: 92 },
+          2: { cellWidth: 28, halign: 'right' },
+          3: { cellWidth: 30, halign: 'center' }
+        }
       });
-
-      yPosition = ((doc as AutoTableDoc).lastAutoTable?.finalY || yPosition) + 20;
     }
 
-    // PRODUTOS E VENDAS REALIZADAS
-    if (yPosition > 200) {
-      doc.addPage();
-      yPosition = 25;
-    }
+    doc.addPage();
+    yPosition = drawPageHeader('Pessoas • Lista Simples', 'Panorama final por pessoa');
+    autoTable(doc, {
+      head: [['ID', 'Nome', 'Deposito Inicial', 'Compras', 'Total Gasto', 'Saldo Final', 'Destino']],
+      body: peopleSimpleData.map((row) => [
+        String(row.ID),
+        String(row.Nome),
+        formatCurrency(Number(row['Depósito Inicial'])),
+        String(row['Total Compras']),
+        formatCurrency(Number(row['Total Gasto'])),
+        formatCurrency(Number(row['Saldo Final'])),
+        String(row['Destino Saldo'])
+      ]),
+      startY: yPosition,
+      ...getTableTheme(8.4),
+      columnStyles: {
+        0: { cellWidth: 18 },
+        1: { cellWidth: 46 },
+        2: { cellWidth: 28, halign: 'right' },
+        3: { cellWidth: 18, halign: 'center' },
+        4: { cellWidth: 26, halign: 'right' },
+        5: { cellWidth: 26, halign: 'right' },
+        6: { cellWidth: 24, halign: 'center' }
+      }
+    });
 
-    doc.setFontSize(14);
-    doc.text('PRODUTOS E VENDAS REALIZADAS', margin, yPosition);
-    yPosition += 10;
+    doc.addPage();
+    yPosition = drawPageHeader('Pessoas • Historico Completo', 'Lancamentos detalhados por pessoa');
+    autoTable(doc, {
+      head: [['ID', 'Nome', 'Produto', 'QTD', 'Valor', 'Data', 'Hora', 'Saldo', 'Destino']],
+      body: peopleDetailedData.map((row) => [
+        String(row.ID),
+        String(row.Nome),
+        cleanTextForPDF(String(row.Produto)),
+        String(row.QTD),
+        row.Valor ? formatCurrency(Number(row.Valor)) : '',
+        String(row.Data),
+        String(row.Hora),
+        formatCurrency(Number(row['Saldo Final'])),
+        String(row['Destino Saldo'])
+      ]),
+      startY: yPosition,
+      ...getTableTheme(7.5),
+      columnStyles: {
+        0: { cellWidth: 14 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 54 },
+        3: { cellWidth: 10, halign: 'center' },
+        4: { cellWidth: 18, halign: 'right' },
+        5: { cellWidth: 18, halign: 'center' },
+        6: { cellWidth: 16, halign: 'center' },
+        7: { cellWidth: 18, halign: 'right' },
+        8: { cellWidth: 20, halign: 'center' }
+      }
+    });
 
-    // Preparar dados dos produtos com vendas
+    doc.addPage();
+    yPosition = drawPageHeader('Produtos', 'Resumo final de estoque e cadastro');
+    autoTable(doc, {
+      head: [['Código', 'Produto', 'Qtd Comprada', 'Custo', 'Valor Unit.', 'Preco', 'Estoque']],
+      body: productSummaryData.map((row) => [
+        String(row['Código']),
+        cleanTextForPDF(String(row['Produto'])),
+        String(row['Qtd Comprada']),
+        formatCurrency(Number(row['Custo'])),
+        formatCurrency(Number(row['Valor Unitário'])),
+        formatCurrency(Number(row['Preço'])),
+        String(row['Estoque'])
+      ]),
+      startY: yPosition,
+      ...getTableTheme(8.4),
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 56 },
+        2: { cellWidth: 22, halign: 'center' },
+        3: { cellWidth: 22, halign: 'right' },
+        4: { cellWidth: 24, halign: 'right' },
+        5: { cellWidth: 20, halign: 'right' },
+        6: { cellWidth: 18, halign: 'center' }
+      }
+    });
+
+    doc.addPage();
+    yPosition = drawPageHeader('Vendas por Produto', 'Desempenho comercial consolidado do acampamento');
+
     const productsData: Array<Array<string | number>> = [];
     let totalGeralVendas = 0;
     let totalGeralLucro = 0;
@@ -889,30 +815,32 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       head: [['Código', 'Produto', 'Qtd Vendida', 'Total Vendas', 'Preço Unit.', 'Sobrou', 'Lucro']],
       body: productsData,
       startY: yPosition,
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [66, 139, 202] },
+      ...getTableTheme(8.2),
+      headStyles: {
+        fillColor: [33, 74, 128],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
       columnStyles: {
-        0: { cellWidth: 25 }, // Código
-        1: { cellWidth: 40 }, // Produto  
-        2: { cellWidth: 22 }, // Qtd
-        3: { cellWidth: 28 }, // Total Vendas
-        4: { cellWidth: 22 }, // Preço
-        5: { cellWidth: 20 }, // Sobrou
-        6: { cellWidth: 25 }  // Lucro
+        0: { cellWidth: 22 },
+        1: { cellWidth: 52 },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 28, halign: 'right' },
+        4: { cellWidth: 22, halign: 'right' },
+        5: { cellWidth: 18, halign: 'center' },
+        6: { cellWidth: 26, halign: 'right' }
       },
       didParseCell: function(data) {
-        // Destacar linha de total
         if (data.row.index === productsData.length - 1) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [240, 240, 240];
+          data.cell.styles.fillColor = palette.accentSoft;
         }
       }
     });
 
     addPdfFooter();
     reportAssets.push({ fileName, data: doc.output('blob') });
-    reportsGenerated.push(`Relatório Final PDF`);
+    reportsGenerated.push('Dossie Final PDF');
   };
 
   const handleClose = () => {

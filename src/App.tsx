@@ -28,6 +28,7 @@ import {
   Add as AddIcon,
   Search as SearchIcon,
   ShoppingCart as ShoppingCartIcon,
+  QrCodeScanner as QrCodeScannerIcon,
   MoreVert as MoreVertIcon,
   Assessment as AssessmentIcon,
   Upload as UploadIcon,
@@ -43,6 +44,7 @@ import { PersonList } from './components/PersonList';
 import { PersonDetail } from './components/PersonDetail';
 import { ProductList } from './components/ProductList';
 import { NetworkStatus } from './components/NetworkStatus';
+import { BarcodeScanner } from './components/BarcodeScanner';
 import type { Person } from './types/index';
 import { createAppTheme } from './theme/theme';
 
@@ -112,6 +114,7 @@ function AppContent() {
   const [showBrandingSettings, setShowBrandingSettings] = useState(false);
   const [showDataSync, setShowDataSync] = useState(false);
   const [showHelpGuide, setShowHelpGuide] = useState(false);
+  const [showPeopleScanner, setShowPeopleScanner] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null);
   const { people, branding } = useApp();
   const deferredSearchTerm = useDeferredValue(searchTerm);
@@ -160,15 +163,54 @@ function AppContent() {
   }, [branding.missionaryOffersResetAt, deferredSearchTerm, people]);
   const totalMissionaryOffers = appSummary.totalMissionaryOffers;
   const missionaryGoal = branding.missionaryGoal || 0;
-  const missionaryProgress = missionaryGoal > 0 ? Math.min((totalMissionaryOffers / missionaryGoal) * 100, 100) : 0;
+  const missionaryProgress = missionaryGoal > 0 ? (totalMissionaryOffers / missionaryGoal) * 100 : 0;
+  const missionaryProgressFill = Math.min(missionaryProgress, 100);
   const getMissionaryProgressColor = (progress: number) => {
-    if (progress >= 100) return '#00c853';
-    if (progress >= 75) return '#43a047';
-    if (progress >= 50) return '#ffd600';
-    if (progress >= 25) return '#ff8f00';
-    return '#f44336';
+    if (progress >= 100) return 'linear-gradient(90deg, #0b8f55 0%, #0fb36d 18%, #24c77f 36%, #5cd39d 54%, #8ce0ba 72%, #b7edd4 100%)';
+    if (progress >= 85) return 'linear-gradient(90deg, #198754 0%, #2aa867 20%, #47bf79 40%, #79d49a 62%, #a7e5ba 82%, #d4f2dc 100%)';
+    if (progress >= 70) return 'linear-gradient(90deg, #3f9b4f 0%, #5ab85a 20%, #84c95b 42%, #b1d85e 64%, #d5e88a 84%, #eef5c3 100%)';
+    if (progress >= 55) return 'linear-gradient(90deg, #b38a12 0%, #c8a11b 18%, #dbba2c 38%, #e9cd4f 58%, #f2df7a 78%, #f8efb6 100%)';
+    if (progress >= 40) return 'linear-gradient(90deg, #c27a15 0%, #d48d1d 20%, #e3a034 40%, #edb85e 60%, #f5cd8c 80%, #fae6c1 100%)';
+    if (progress >= 25) return 'linear-gradient(90deg, #c25d1a 0%, #d86e24 22%, #e7843d 44%, #f09f67 66%, #f6be97 84%, #fbe0cb 100%)';
+    if (progress >= 10) return 'linear-gradient(90deg, #bc3f23 0%, #d25535 20%, #e56f52 42%, #ef8d76 64%, #f5b0a1 84%, #fbd7d0 100%)';
+    return 'linear-gradient(90deg, #a92e2e 0%, #c03d3d 18%, #d85858 40%, #e67c7c 62%, #f0a5a5 82%, #f7d3d3 100%)';
   };
   const missionaryProgressColor = getMissionaryProgressColor(missionaryProgress);
+
+  const findPersonByIdentifier = (value: string) => {
+    const normalizedValue = value.trim().toLowerCase();
+    if (!normalizedValue) {
+      return undefined;
+    }
+
+    return people.find((person) => (
+      person.customId?.trim().toLowerCase() === normalizedValue ||
+      person.name.trim().toLowerCase() === normalizedValue
+    ));
+  };
+
+  const openPersonFromLookup = (rawValue: string) => {
+    const normalizedValue = rawValue.trim();
+    if (!normalizedValue) {
+      return;
+    }
+
+    setSearchTerm(normalizedValue);
+    const matchedPerson = findPersonByIdentifier(normalizedValue);
+
+    if (matchedPerson) {
+      setSelectedPerson(null);
+      setPurchasePerson(matchedPerson);
+    }
+  };
+
+  const handlePeopleTabClick = () => {
+    startTransition(() => {
+      setActiveTab('people');
+      setSelectedPerson(null);
+      setSearchTerm('');
+    });
+  };
 
   const handleTabChange = (
     _event: React.MouseEvent<HTMLElement>,
@@ -197,6 +239,14 @@ function AppContent() {
     if (e.key === 'Enter' && filteredPeople.length === 1) {
       // Se há exatamente uma pessoa encontrada, abre a tela de compra
       setPurchasePerson(filteredPeople[0]);
+      return;
+    }
+
+    if (e.key === 'Enter' && searchTerm.trim()) {
+      const matchedPerson = findPersonByIdentifier(searchTerm);
+      if (matchedPerson) {
+        setPurchasePerson(matchedPerson);
+      }
     }
   };
 
@@ -280,62 +330,6 @@ function AppContent() {
               <NetworkStatus />
             </Box>
           </Box>
-          
-          <Box
-            sx={{
-              mr: 2,
-              px: 1.75,
-              py: 0.9,
-              borderRadius: 4,
-              color: 'common.white',
-              minWidth: 248,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 1.5,
-              position: 'relative',
-              overflow: 'hidden',
-              bgcolor: '#7a7f87',
-              border: '1px solid',
-              borderColor: 'rgba(0, 0, 0, 0.12)'
-            }}
-          >
-            <Box
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                width: `${missionaryProgress}%`,
-                bgcolor: missionaryProgressColor,
-                transition: 'width 0.35s ease, background-color 0.35s ease'
-              }}
-            />
-            <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0, flex: 1 }}>
-              <VolunteerActivismIcon sx={{ fontSize: 20, color: 'common.white', flexShrink: 0 }} />
-              <Box sx={{ textAlign: 'left', lineHeight: 1.1, minWidth: 0 }}>
-                <Typography variant="caption" sx={{ display: 'block', color: 'common.white', opacity: 0.92 }}>
-                  Ofertas Missionaria
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: 'common.white', whiteSpace: 'nowrap' }}>
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalMissionaryOffers)} / {missionaryGoal > 0
-                    ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(missionaryGoal)
-                    : 'Sem meta'}
-                </Typography>
-              </Box>
-            </Box>
-            <Box
-              sx={{
-                position: 'relative',
-                zIndex: 1,
-                pl: 1.5,
-                ml: 0.5,
-                borderLeft: '1px solid rgba(255,255,255,0.35)'
-              }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 800, color: 'common.white', lineHeight: 1 }}>
-                {missionaryGoal > 0 ? `${Math.round(missionaryProgress)}%` : '--'}
-              </Typography>
-            </Box>
-          </Box>
 
           <ToggleButtonGroup
             value={activeTab}
@@ -361,7 +355,7 @@ function AppContent() {
               },
             }}
           >
-            <ToggleButton value="people" aria-label="pessoas">
+            <ToggleButton value="people" aria-label="pessoas" onClick={handlePeopleTabClick}>
               <PeopleIcon sx={{ mr: 1, fontSize: 20 }} />
               Pessoas
             </ToggleButton>
@@ -444,6 +438,100 @@ function AppContent() {
             </MenuItem>
           </Menu>
         </Toolbar>
+        <Box
+          sx={{
+            position: 'relative',
+            width: '100%',
+            overflow: 'hidden',
+            bgcolor: '#f0f0f0',
+            borderTop: '1px solid rgba(255,255,255,0.7)',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)'
+          }}
+        >
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              width: `${missionaryProgressFill}%`,
+              background: missionaryProgressColor,
+              opacity: 0.96,
+              transition: 'width 0.35s ease, background-color 0.35s ease'
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(90deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.08) 32%, rgba(255,255,255,0) 100%)',
+              pointerEvents: 'none'
+            }}
+          />
+          <Box
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+              px: { xs: 2, md: 3 },
+              py: 0.45,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+              color: 'common.black',
+              flexWrap: 'wrap',
+              textAlign: 'center'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+              <VolunteerActivismIcon sx={{ fontSize: 20 }} />
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                Ofertas Missionaria
+              </Typography>
+            </Box>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                py: 0.25,
+                borderRadius: 999,
+                bgcolor: 'rgba(255,255,255,0.52)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(0,0,0,0.08)',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                flexShrink: 0
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 800 }}>
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalMissionaryOffers)}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.78 }}>
+                /
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                {missionaryGoal > 0
+                  ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(missionaryGoal)
+                  : 'Sem meta'}
+              </Typography>
+            </Box>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 800,
+                flexShrink: 0,
+                px: 1.25,
+                py: 0.25,
+                borderRadius: 999,
+                bgcolor: 'rgba(255,255,255,0.7)',
+                border: '1px solid rgba(0,0,0,0.08)',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+              }}
+            >
+              {missionaryGoal > 0 ? `${Math.round(missionaryProgress)}%` : '--'}
+            </Typography>
+          </Box>
+        </Box>
       </AppBar>
 
       <Container maxWidth="xl" sx={{ py: 3, flexGrow: 1 }}>
@@ -454,7 +542,7 @@ function AppContent() {
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
               <TextField
                 fullWidth
-                placeholder="Buscar pessoa por nome ou ID... (Enter para abrir compra)"
+                placeholder="Buscar pessoa por nome, ID, codigo ou QR... (Enter para abrir compra)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyPress={handleSearchKeyPress}
@@ -462,6 +550,17 @@ function AppContent() {
                   startAdornment: (
                     <InputAdornment position="start">
                       <SearchIcon />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPeopleScanner(true)}
+                        edge="end"
+                        aria-label="abrir scanner para buscar pessoa"
+                      >
+                        <QrCodeScannerIcon />
+                      </IconButton>
                     </InputAdornment>
                   ),
                 }}
@@ -547,6 +646,15 @@ function AppContent() {
       <Suspense fallback={<ModalFallback />}>
         {showPersonForm && <PersonForm onClose={() => setShowPersonForm(false)} />}
         {showProductForm && <ProductForm onClose={() => setShowProductForm(false)} />}
+        {showPeopleScanner && (
+          <BarcodeScanner
+            onScan={(value) => {
+              openPersonFromLookup(value);
+              setShowPeopleScanner(false);
+            }}
+            onClose={() => setShowPeopleScanner(false)}
+          />
+        )}
         {purchasePerson && (
           <PurchaseModal
             person={purchasePerson}

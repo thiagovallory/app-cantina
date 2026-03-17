@@ -1,9 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const fs = require('fs');
 const path = require('path');
 const { Server } = require('socket.io');
-const { db, getBootstrapData } = require('./db');
+const { db, getBootstrapData } = require('./db.cjs');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -15,6 +16,27 @@ const io = new Server(httpServer, {
   },
 });
 let startedServer = null;
+const serverLogFile = process.env.APP_CANTINA_LOG_FILE || null;
+
+function writeServerLog(level, message, error) {
+  if (!serverLogFile) {
+    return;
+  }
+
+  const details = error instanceof Error
+    ? `${message}\n${error.stack || error.message}`
+    : message;
+
+  try {
+    fs.appendFileSync(
+      serverLogFile,
+      `[${new Date().toISOString()}] [SERVER:${level}] ${details}\n`,
+      'utf8'
+    );
+  } catch (writeError) {
+    console.error('Falha ao gravar log do servidor:', writeError);
+  }
+}
 
 app.use(cors());
 app.use(express.json());
@@ -743,6 +765,7 @@ app.get(/.*/, (req, res) => {
 // Middleware de erro
 app.use((err, _req, res, _next) => {
   console.error(err);
+  writeServerLog('ERROR', 'Erro interno do servidor.', err);
   res.status(500).json({ error: 'Erro interno no servidor' });
 });
 
@@ -753,14 +776,17 @@ io.on('connection', (socket) => {
 function startServer(port = PORT) {
   return new Promise((resolve, reject) => {
     if (startedServer) {
+      writeServerLog('INFO', `Reaproveitando servidor interno ja iniciado na porta ${port}.`);
       return resolve(startedServer);
     }
 
+    writeServerLog('INFO', `Iniciando servidor interno na porta ${port}.`);
     httpServer.once('error', reject);
     httpServer.listen(port, () => {
       httpServer.off('error', reject);
       startedServer = httpServer;
       console.log(`Servidor App Cantina rodando em http://localhost:${port}`);
+      writeServerLog('INFO', `Servidor App Cantina rodando em http://localhost:${port}`);
       resolve(httpServer);
     });
   });

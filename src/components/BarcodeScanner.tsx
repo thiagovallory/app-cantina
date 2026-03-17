@@ -36,6 +36,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
           BarcodeFormat.EAN_8,
           BarcodeFormat.CODE_128,
           BarcodeFormat.CODE_39,
+          BarcodeFormat.QR_CODE,
           BarcodeFormat.UPC_A,
           BarcodeFormat.UPC_E
         ]);

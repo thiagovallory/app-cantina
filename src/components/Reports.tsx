@@ -242,11 +242,140 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
     });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 10;
-    let yPosition = 20;
+    const margin = 12;
+    let yPosition = 18;
     const orgSlug = branding.organizationName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     const reportFileSlug = selectedReport === 'sales-summary' ? 'vendas' : selectedReport;
     const fileName = `${orgSlug}-relatorio-${reportFileSlug}-${new Date().toISOString().split('T')[0]}.pdf`;
+    const palette = {
+      ink: [22, 33, 52] as [number, number, number],
+      muted: [92, 104, 128] as [number, number, number],
+      accent: [33, 74, 128] as [number, number, number],
+      accentSoft: [233, 240, 248] as [number, number, number],
+      line: [217, 224, 232] as [number, number, number],
+      successSoft: [228, 242, 235] as [number, number, number]
+    };
+    const formatCurrency = (value: number) => `R$ ${value.toFixed(2)}`;
+    const reportTitleMap: Record<ReportType, string> = {
+      'pessoas-simples': 'Relatorio de Pessoas',
+      'pessoas-detalhado': 'Relatorio de Pessoas com Historico',
+      'sales-summary': 'Relatorio de Vendas'
+    };
+
+    const drawSummaryCards = (cards: Array<{ label: string; value: string }>) => {
+      const gap = 4;
+      const cardWidth = (pageWidth - (margin * 2) - (gap * (cards.length - 1))) / cards.length;
+      const cardHeight = 20;
+
+      cards.forEach((card, index) => {
+        const x = margin + (index * (cardWidth + gap));
+        doc.setDrawColor(...palette.line);
+        doc.setFillColor(...palette.accentSoft);
+        doc.roundedRect(x, yPosition, cardWidth, cardHeight, 3, 3, 'FD');
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(...palette.muted);
+        doc.text(card.label.toUpperCase(), x + 4, yPosition + 6);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(...palette.ink);
+        doc.text(card.value, x + 4, yPosition + 14);
+      });
+
+      yPosition += cardHeight + 8;
+    };
+
+    const getTableTheme = (fontSize = 9) => ({
+      margin: { left: margin, right: margin },
+      styles: {
+        fontSize,
+        cellPadding: 2.4,
+        lineColor: palette.line,
+        lineWidth: 0.2,
+        textColor: palette.ink
+      },
+      headStyles: {
+        fillColor: palette.accent,
+        textColor: [255, 255, 255] as [number, number, number],
+        fontStyle: 'bold' as const,
+        halign: 'left' as const
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252] as [number, number, number]
+      }
+    });
+
+    const addReportHeader = async () => {
+      doc.setFillColor(...palette.ink);
+      doc.rect(0, 0, pageWidth, 16, 'F');
+
+      let logoWidth = 0;
+      let logoHeight = 0;
+      const logoTop = 24;
+
+      if (branding.showLogo && branding.logoUrl) {
+        try {
+          const logoUrl = branding.logoUrl.startsWith('http') || branding.logoUrl.startsWith('blob:') || branding.logoUrl.startsWith('data:')
+            ? branding.logoUrl
+            : window.location.origin + branding.logoUrl;
+
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = logoUrl;
+          });
+
+          const imgRatio = img.width / img.height;
+          logoHeight = 24;
+          logoWidth = logoHeight * imgRatio;
+
+          if (logoWidth > 42) {
+            logoWidth = 42;
+            logoHeight = logoWidth / imgRatio;
+          }
+
+          doc.addImage(img, 'PNG', margin, logoTop, logoWidth, logoHeight);
+        } catch (error) {
+          console.error('Erro ao carregar logo:', error);
+        }
+      }
+
+      const textStartX = logoWidth > 0 ? margin + logoWidth + 6 : margin;
+      const headerRightX = pageWidth - margin;
+      doc.setTextColor(...palette.muted);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text('RELATORIO OPERACIONAL', textStartX, 28);
+
+      doc.setTextColor(...palette.ink);
+      doc.setFontSize(19);
+      doc.text(branding.organizationName || 'App Cantina', textStartX, 36);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(12);
+      doc.setTextColor(...palette.muted);
+      doc.text(reportTitleMap[selectedReport], textStartX, 43);
+
+      doc.setDrawColor(...palette.line);
+      doc.setFillColor(248, 249, 251);
+      doc.roundedRect(headerRightX - 42, 24, 42, 18, 3, 3, 'FD');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...palette.muted);
+      doc.text('EMITIDO EM', headerRightX - 38, 30);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(...palette.ink);
+      doc.text(new Date().toLocaleDateString('pt-BR'), headerRightX - 38, 37);
+
+      yPosition = Math.max(logoTop + logoHeight, 46) + 10;
+    };
+
     const addPdfFooter = () => {
       const totalPages = doc.getNumberOfPages();
 
@@ -264,105 +393,65 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
       doc.setTextColor(0, 0, 0);
     };
 
-    // Adiciona logo centralizada se disponível
-    if (branding.showLogo && branding.logoUrl) {
-      try {
-        // Se for URL absoluta ou relativa
-        const logoUrl = branding.logoUrl.startsWith('http') || branding.logoUrl.startsWith('blob:') 
-          ? branding.logoUrl 
-          : window.location.origin + branding.logoUrl;
-        
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-          img.src = logoUrl;
-        });
-
-        // Calcula proporções mantendo aspect ratio
-        const maxLogoHeight = 35;
-        const maxLogoWidth = 60;
-        
-        // Calcula as dimensões mantendo a proporção
-        const imgRatio = img.width / img.height;
-        let logoWidth = maxLogoWidth;
-        let logoHeight = maxLogoWidth / imgRatio;
-        
-        if (logoHeight > maxLogoHeight) {
-          logoHeight = maxLogoHeight;
-          logoWidth = maxLogoHeight * imgRatio;
-        }
-        
-        // Centraliza a logo horizontalmente
-        const logoX = (pageWidth - logoWidth) / 2;
-        
-        // Adiciona a imagem ao PDF centralizada
-        doc.addImage(img, 'PNG', logoX, yPosition, logoWidth, logoHeight);
-        
-        // Ajusta yPosition baseado na altura da logo
-        yPosition += logoHeight + 10;
-      } catch (error) {
-        // Se falhar ao carregar a logo, continua sem ela
-        console.error('Erro ao carregar logo:', error);
-      }
-    }
-    
-    // Nome da organização centralizado
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    const orgNameWidth = doc.getTextWidth(branding.organizationName);
-    doc.text(branding.organizationName, (pageWidth - orgNameWidth) / 2, yPosition);
-    
-    yPosition += 10;
-    
-    // Título do relatório centralizado
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'normal');
-    const reportTitle = 'Sistema de Cantina - Relatório de Vendas';
-    const titleWidth = doc.getTextWidth(reportTitle);
-    doc.text(reportTitle, (pageWidth - titleWidth) / 2, yPosition);
-    
-    yPosition += 8;
-    
-    // Data centralizada
-    doc.setFontSize(12);
-    const dateText = new Date().toLocaleDateString('pt-BR');
-    const dateWidth = doc.getTextWidth(dateText);
-    doc.text(dateText, (pageWidth - dateWidth) / 2, yPosition);
-
-    yPosition += 20;
+    await addReportHeader();
 
     switch (selectedReport) {
       case 'pessoas-simples': {
-        doc.setFontSize(14);
-        doc.text('Lista de Pessoas', margin, yPosition);
-        yPosition += 10;
+        drawSummaryCards([
+          { label: 'Pessoas', value: String(sortedPeople.length) },
+          { label: 'Depositos', value: formatCurrency(sortedPeople.reduce((sum, person) => sum + person.initialDeposit, 0)) },
+          { label: 'Saldo Atual', value: formatCurrency(sortedPeople.reduce((sum, person) => sum + person.balance, 0)) }
+        ]);
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...palette.ink);
+        doc.text('Lista de pessoas cadastradas', margin, yPosition);
+        yPosition += 7;
 
         const peopleData = sortedPeople.map(person => [
           person.customId || '',
           person.name,
-          `R$ ${person.initialDeposit.toFixed(2)}`,
+          formatCurrency(person.initialDeposit),
           person.purchases.length.toString(),
-          `R$ ${person.balance.toFixed(2)}`
+          formatCurrency(person.balance)
         ]);
 
         autoTable(doc, {
           head: [['ID', 'Nome', 'Depósito', 'Compras', 'Saldo']],
           body: peopleData,
           startY: yPosition,
-          margin: { left: margin, right: margin },
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [66, 139, 202] }
+          ...getTableTheme(9.6),
+          columnStyles: {
+            0: { cellWidth: 26 },
+            1: { cellWidth: 70 },
+            2: { halign: 'right' },
+            3: { halign: 'center', cellWidth: 22 },
+            4: { halign: 'right' }
+          }
         });
         break;
       }
 
       case 'pessoas-detalhado': {
-        doc.setFontSize(14);
-        doc.text('Pessoas com Detalhes de Compras', margin, yPosition);
-        yPosition += 10;
+        const totalPurchases = sortedPeople.reduce((sum, person) => sum + person.purchases.length, 0);
+        const totalItems = sortedPeople.reduce((sum, person) => (
+          sum + person.purchases.reduce((purchaseSum, purchase) => (
+            purchaseSum + purchase.items.reduce((itemSum, item) => itemSum + item.quantity, 0)
+          ), 0)
+        ), 0);
+
+        drawSummaryCards([
+          { label: 'Pessoas', value: String(sortedPeople.length) },
+          { label: 'Compras', value: String(totalPurchases) },
+          { label: 'Itens Vendidos', value: String(totalItems) }
+        ]);
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...palette.ink);
+        doc.text('Historico detalhado de compras por pessoa', margin, yPosition);
+        yPosition += 7;
 
         const detailedData: Array<Array<string | PdfCellConfig>> = [];
         const personHeaderRows = new Set<number>();
@@ -375,8 +464,8 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
               styles: {
                 halign: 'left',
                 fontStyle: 'bold',
-                fillColor: [232, 241, 250],
-                textColor: [33, 33, 33]
+                fillColor: palette.accentSoft,
+                textColor: palette.ink
               }
             }
           ]);
@@ -413,9 +502,16 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
           head: [['ID', 'Nome', 'Produto', 'QTD', 'Valor', 'Data', 'Hora']],
           body: detailedData,
           startY: yPosition,
-          margin: { left: margin, right: margin },
-          styles: { fontSize: 9 },
-          headStyles: { fillColor: [66, 139, 202] },
+          ...getTableTheme(8.8),
+          columnStyles: {
+            0: { cellWidth: 17 },
+            1: { cellWidth: 36 },
+            2: { cellWidth: 57 },
+            3: { cellWidth: 14, halign: 'center' },
+            4: { cellWidth: 24, halign: 'right' },
+            5: { cellWidth: 22, halign: 'center' },
+            6: { cellWidth: 18, halign: 'center' }
+          },
           didParseCell: (data) => {
             if (data.section === 'body' && personHeaderRows.has(data.row.index)) {
               data.cell.styles.lineWidth = 0;
@@ -427,49 +523,24 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
 
       case 'sales-summary': {
         const { rows, totalCost, totalSales, totalProfit } = buildSalesSummaryRows();
-        yPosition -= 6;
-        const salesSummaryTableWidth = 192;
-        const salesSummaryLeftMargin = (pageWidth - salesSummaryTableWidth) / 2;
-        const summaryBoxGap = 4;
-        const summaryBoxWidth = 58;
-        const summaryBoxHeight = 18;
-        const summaryRowWidth = (summaryBoxWidth * 3) + (summaryBoxGap * 2);
-        const summaryStartX = (pageWidth - summaryRowWidth) / 2;
-        const summaryBoxes = [
-          { title: 'Custo Total', value: `R$ ${totalCost.toFixed(2)}` },
-          { title: 'Faturamento', value: `R$ ${totalSales.toFixed(2)}` },
-          { title: 'Lucro Total', value: `R$ ${totalProfit.toFixed(2)}` }
-        ];
-
-        summaryBoxes.forEach((box, index) => {
-          const boxX = summaryStartX + (index * (summaryBoxWidth + summaryBoxGap));
-          doc.setDrawColor(210, 210, 210);
-          doc.setFillColor(248, 249, 251);
-          doc.roundedRect(boxX, yPosition, summaryBoxWidth, summaryBoxHeight, 2, 2, 'FD');
-
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.text(box.title, boxX + (summaryBoxWidth / 2), yPosition + 6, { align: 'center' });
-
-          doc.setFontSize(11);
-          doc.setFont('helvetica', 'normal');
-          doc.text(box.value, boxX + (summaryBoxWidth / 2), yPosition + 13, { align: 'center' });
-        });
-
-        yPosition += summaryBoxHeight + 10;
+        drawSummaryCards([
+          { label: 'Custo Total', value: formatCurrency(totalCost) },
+          { label: 'Faturamento', value: formatCurrency(totalSales) },
+          { label: 'Lucro Total', value: formatCurrency(totalProfit) }
+        ]);
 
         const salesTableData = rows
           .map((row) => [
             row.code || '-',
             row.product,
             row.purchasedQuantity.toString(),
-            `R$ ${row.cost.toFixed(2)}`,
-            row.unitCost > 0 ? `R$ ${row.unitCost.toFixed(2)}` : '-',
-            `R$ ${row.price.toFixed(2)}`,
+            formatCurrency(row.cost),
+            row.unitCost > 0 ? formatCurrency(row.unitCost) : '-',
+            formatCurrency(row.price),
             row.salesQuantity.toString(),
-            `R$ ${row.salesTotal.toFixed(2)}`,
+            formatCurrency(row.salesTotal),
             row.stock.toString(),
-            `R$ ${row.profit.toFixed(2)}`
+            formatCurrency(row.profit)
           ])
           .sort((a, b) => parseFloat(b[7].replace('R$ ', '')) - parseFloat(a[7].replace('R$ ', '')));
 
@@ -477,21 +548,18 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
           head: [['Código', 'Produto', 'QTD', 'Custo', 'V. Unit.', 'V. Vend.', 'QTD V.', 'T. Vend.', 'Estq.', 'Lucro']],
           body: salesTableData,
           startY: yPosition,
-          margin: { left: salesSummaryLeftMargin, right: salesSummaryLeftMargin },
-          tableWidth: salesSummaryTableWidth,
-          styles: { fontSize: 9, cellPadding: 1.6 },
-          headStyles: { fillColor: [66, 139, 202], fontSize: 9, fontStyle: 'bold' },
+          ...getTableTheme(8.5),
           columnStyles: {
-            0: { cellWidth: 27 }, // Código
-            1: { cellWidth: 42 }, // Produto
-            2: { cellWidth: 11 }, // QTD
-            3: { cellWidth: 16 }, // Custo
-            4: { cellWidth: 17 }, // V. Unit.
-            5: { cellWidth: 17 }, // V. Vend.
-            6: { cellWidth: 14 }, // QTD V.
-            7: { cellWidth: 19 }, // T. Vend.
-            8: { cellWidth: 12 }, // Estq.
-            9: { cellWidth: 17 } // Lucro
+            0: { cellWidth: 20 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 12, halign: 'center' },
+            3: { cellWidth: 19, halign: 'right' },
+            4: { cellWidth: 19, halign: 'right' },
+            5: { cellWidth: 19, halign: 'right' },
+            6: { cellWidth: 15, halign: 'center' },
+            7: { cellWidth: 21, halign: 'right' },
+            8: { cellWidth: 12, halign: 'center' },
+            9: { cellWidth: 21, halign: 'right' }
           }
         });
         break;
