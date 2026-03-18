@@ -47,7 +47,7 @@ type PdfCellConfig = {
 export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
   const { people, products, branding } = useApp();
   const [selectedReport, setSelectedReport] = useState<ReportType>('pessoas-simples');
-  const [outputFormat, setOutputFormat] = useState<OutputFormat>('csv');
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>('pdf');
   const sortedPeople = [...people].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
 
   const getUnitCost = (costPrice?: number, purchasedQuantity?: number) => {
@@ -650,6 +650,40 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
           </Alert>
 
           <Box>
+            <FormControl>
+              <FormLabel>Formato de Saída</FormLabel>
+              <RadioGroup
+                value={outputFormat}
+                onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}
+                row
+              >
+                <FormControlLabel
+                  value="pdf"
+                  control={<Radio />}
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <PrintIcon fontSize="small" />
+                      PDF (Imprimir)
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  value="csv"
+                  control={<Radio />}
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <FileDownloadIcon fontSize="small" />
+                      CSV (Excel)
+                    </Box>
+                  }
+                />
+              </RadioGroup>
+            </FormControl>
+          </Box>
+
+          <Divider />
+
+          <Box>
             <Typography variant="h6" gutterBottom>
               Tipo de Relatório
             </Typography>
@@ -682,40 +716,6 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
                 </Card>
               ))}
             </Stack>
-          </Box>
-
-          <Divider />
-
-          <Box>
-            <FormControl>
-              <FormLabel>Formato de Saída</FormLabel>
-              <RadioGroup
-                value={outputFormat}
-                onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}
-                row
-              >
-                <FormControlLabel
-                  value="csv"
-                  control={<Radio />}
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <FileDownloadIcon fontSize="small" />
-                      CSV (Excel)
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  value="pdf"
-                  control={<Radio />}
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <PrintIcon fontSize="small" />
-                      PDF (Imprimir)
-                    </Box>
-                  }
-                />
-              </RadioGroup>
-            </FormControl>
           </Box>
 
           <Alert severity="success">

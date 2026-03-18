@@ -349,7 +349,6 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
 
   const generateFinalReportsPDF = async (reportAssets: ReportAsset[], reportsGenerated: string[]) => {
     const doc = new jsPDF();
-    const timestamp = new Date().toLocaleDateString('pt-BR');
     const margin = 12;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -372,6 +371,138 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       hour: '2-digit',
       minute: '2-digit'
     });
+    const svgViewBox = { width: 595.28, height: 841.89 };
+    const scaleX = pageWidth / svgViewBox.width;
+    const scaleY = pageHeight / svgViewBox.height;
+    const loadImage = async (src: string) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error(`Falha ao carregar imagem: ${src}`));
+        img.src = src;
+      });
+
+      return img;
+    };
+    const drawCoverPath = (
+      pathData: string,
+      color: [number, number, number]
+    ) => {
+      const tokens = pathData.match(/[A-Za-z]|-?\d*\.?\d+/g) || [];
+      let index = 0;
+      let command = '';
+      let currentX = 0;
+      let currentY = 0;
+      let startX = 0;
+      let startY = 0;
+      let isOpen = false;
+      const nextNumber = () => Number(tokens[index++]);
+      const sx = (value: number) => value * scaleX;
+      const sy = (value: number) => value * scaleY;
+      const flushFill = () => {
+        if (isOpen) {
+          doc.close();
+          doc.fill();
+          isOpen = false;
+        }
+      };
+
+      doc.setFillColor(...color);
+
+      while (index < tokens.length) {
+        const token = tokens[index];
+        if (/^[A-Za-z]$/.test(token)) {
+          command = token;
+          index += 1;
+        }
+
+        switch (command) {
+          case 'M': {
+            flushFill();
+            currentX = nextNumber();
+            currentY = nextNumber();
+            startX = currentX;
+            startY = currentY;
+            doc.moveTo(sx(currentX), sy(currentY));
+            isOpen = true;
+            command = 'L';
+            break;
+          }
+          case 'H': {
+            currentX = nextNumber();
+            doc.lineTo(sx(currentX), sy(currentY));
+            break;
+          }
+          case 'h': {
+            currentX += nextNumber();
+            doc.lineTo(sx(currentX), sy(currentY));
+            break;
+          }
+          case 'V': {
+            currentY = nextNumber();
+            doc.lineTo(sx(currentX), sy(currentY));
+            break;
+          }
+          case 'v': {
+            currentY += nextNumber();
+            doc.lineTo(sx(currentX), sy(currentY));
+            break;
+          }
+          case 'L': {
+            currentX = nextNumber();
+            currentY = nextNumber();
+            doc.lineTo(sx(currentX), sy(currentY));
+            break;
+          }
+          case 'l': {
+            currentX += nextNumber();
+            currentY += nextNumber();
+            doc.lineTo(sx(currentX), sy(currentY));
+            break;
+          }
+          case 'C': {
+            const x1 = nextNumber();
+            const y1 = nextNumber();
+            const x2 = nextNumber();
+            const y2 = nextNumber();
+            const x3 = nextNumber();
+            const y3 = nextNumber();
+            doc.curveTo(sx(x1), sy(y1), sx(x2), sy(y2), sx(x3), sy(y3));
+            currentX = x3;
+            currentY = y3;
+            break;
+          }
+          case 'c': {
+            const x1 = currentX + nextNumber();
+            const y1 = currentY + nextNumber();
+            const x2 = currentX + nextNumber();
+            const y2 = currentY + nextNumber();
+            const x3 = currentX + nextNumber();
+            const y3 = currentY + nextNumber();
+            doc.curveTo(sx(x1), sy(y1), sx(x2), sy(y2), sx(x3), sy(y3));
+            currentX = x3;
+            currentY = y3;
+            break;
+          }
+          case 'Z':
+          case 'z': {
+            currentX = startX;
+            currentY = startY;
+            flushFill();
+            command = '';
+            break;
+          }
+          default: {
+            index += 1;
+            break;
+          }
+        }
+      }
+
+      flushFill();
+    };
     const addPdfFooter = () => {
       const totalPages = doc.getNumberOfPages();
 
@@ -458,57 +589,6 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
     const saqueCount = peopleWithPositiveBalance.filter((person) => getPersonBalanceAction(person.id) === 'saque').length;
     const missionarioCount = peopleWithPositiveBalance.filter((person) => getPersonBalanceAction(person.id) === 'missionario').length;
 
-    // Header principal com branding
-    let currentY = yPosition;
-    
-    // Adicionar logo se configurado
-    if (branding.showLogo && branding.logoUrl) {
-      try {
-        const logoUrl = branding.logoUrl.startsWith('http') || branding.logoUrl.startsWith('blob:')
-          ? branding.logoUrl
-          : window.location.origin + branding.logoUrl;
-
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-          img.src = logoUrl;
-        });
-
-        const maxLogoHeight = 35;
-        const maxLogoWidth = 60;
-        const imgRatio = img.width / img.height;
-        let logoWidth = maxLogoWidth;
-        let logoHeight = maxLogoWidth / imgRatio;
-
-        if (logoHeight > maxLogoHeight) {
-          logoHeight = maxLogoHeight;
-          logoWidth = maxLogoHeight * imgRatio;
-        }
-
-        const logoX = (pageWidth - logoWidth) / 2;
-        doc.addImage(img, 'PNG', logoX, currentY, logoWidth, logoHeight);
-        currentY += logoHeight + 10;
-      } catch (error) {
-        console.warn('Não foi possível carregar o logo:', error);
-      }
-    }
-
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(cleanTextForPDF(branding.organizationName), pageWidth / 2, currentY, { align: 'center' });
-    currentY += 10;
-    
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'normal');
-    doc.text('RELATÓRIO FINAL DE ENCERRAMENTO', pageWidth / 2, currentY, { align: 'center' });
-    doc.setFontSize(12);
-    currentY += 10;
-    doc.text(`Data: ${timestamp}`, pageWidth / 2, currentY, { align: 'center' });
-    yPosition = currentY + 15;
-
     // Calcular estatísticas de vendas para o resumo
     const salesStats = new Map<string, { quantity: number; total: number; name: string; price: number }>();
     let grandTotalSales = 0;
@@ -558,10 +638,12 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       });
     });
 
-    doc.setFillColor(...palette.ink);
-    doc.rect(0, 0, pageWidth, 42, 'F');
-    doc.setFillColor(...palette.accentSoft);
-    doc.rect(0, 42, pageWidth, pageHeight - 42, 'F');
+    drawCoverPath('M361.74,0H0v841.89h404.56c32.49-92.67,52.93-227.34,52.93-377.23,0-208.14-39.42-386.92-95.76-464.66Z', [181, 227, 240]);
+    drawCoverPath('M432.65,0h-70.92c56.34,77.74,95.76,256.52,95.76,464.66,0,149.9-20.45,284.56-52.93,377.23h48.98c21.98-108.76,34.73-238.25,34.73-377.23,0-178.47-21.03-341.29-55.62-464.66Z', [133, 207, 229]);
+    drawCoverPath('M475.66,0h-43.01c34.59,123.37,55.62,286.18,55.62,464.66,0,138.99-12.75,268.47-34.73,377.23h36.63c16.59-114.79,25.84-242.56,25.84-377.23,0-169.95-14.74-328.91-40.35-464.66Z', [92, 184, 214]);
+    drawCoverPath('M516.52,0h-40.86c25.62,135.74,40.35,294.71,40.35,464.66,0,134.67-9.26,262.44-25.84,377.23h37.47c13.21-117.89,20.4-244.88,20.4-377.23,0-165.74-11.28-323.08-31.53-464.66Z', [54, 156, 196]);
+    drawCoverPath('M551.37,0h-34.85c20.24,141.58,31.53,298.91,31.53,464.66,0,132.35-7.2,259.34-20.4,377.23h32.69c10.88-119.75,16.71-246.32,16.71-377.23,0-163.24-9.06-319.74-25.67-464.66Z', [33, 122, 171]);
+    drawCoverPath('M551.37,0c16.61,144.92,25.67,301.41,25.67,464.66,0,130.92-5.84,257.49-16.71,377.23h34.95V0h-43.91Z', [23, 92, 145]);
 
     let coverY = 26;
     if (branding.showLogo && branding.logoUrl) {
@@ -569,15 +651,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
         const logoUrl = branding.logoUrl.startsWith('http') || branding.logoUrl.startsWith('blob:') || branding.logoUrl.startsWith('data:')
           ? branding.logoUrl
           : window.location.origin + branding.logoUrl;
-
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-          img.src = logoUrl;
-        });
+        const img = await loadImage(logoUrl);
 
         const imgRatio = img.width / img.height;
         let logoHeight = 30;
@@ -596,21 +670,17 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       coverY = 72;
     }
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('APP CANTINA', pageWidth / 2, 18, { align: 'center' });
     doc.setTextColor(...palette.ink);
     doc.setFontSize(22);
-    doc.text(cleanTextForPDF(branding.organizationName), pageWidth / 2, coverY, { align: 'center' });
+    doc.text(cleanTextForPDF(branding.organizationName), margin, coverY);
     coverY += 12;
     doc.setFontSize(19);
-    doc.text('DOSSIE FINAL DE ENCERRAMENTO', pageWidth / 2, coverY, { align: 'center' });
+    doc.text('DOSSIE FINAL DE ENCERRAMENTO', margin, coverY);
     coverY += 10;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.setTextColor(...palette.muted);
-    doc.text(`Documento consolidado para conferencia e impressao • ${formatDateTime()}`, pageWidth / 2, coverY, { align: 'center' });
+    doc.text(`Documento consolidado para conferencia e impressao • ${formatDateTime()}`, margin, coverY);
 
     coverY += 16;
     coverY = drawSummaryCards([
@@ -638,7 +708,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       ['Total de Vendas Realizadas', `R$ ${grandTotalSales.toFixed(2)}`],
       ['Total de Ofertas para Missões', `R$ ${totalMissionaryOffers.toFixed(2)}`],
       ['Total Geral Missionário', `R$ ${(totalMissionaryOffers + totalMissionario).toFixed(2)}`],
-      ['Total de Lucro Calculado', grandTotalProfit > 0 ? `R$ ${grandTotalProfit.toFixed(2)}` : 'N/A'],
+      ['Total de Lucro Calculado', formatCurrency(grandTotalProfit)],
       ['Total de Produtos', products.length.toString()],
       ['Total de Saque', `${saqueCount} pessoas - R$ ${totalSaque.toFixed(2)}`],
       ['Total de Saldo para Missionário', `${missionarioCount} pessoas - R$ ${totalMissionario.toFixed(2)}`]
@@ -714,7 +784,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
     doc.addPage();
     yPosition = drawPageHeader('Pessoas • Historico Completo', 'Lancamentos detalhados por pessoa');
     autoTable(doc, {
-      head: [['ID', 'Nome', 'Produto', 'QTD', 'Valor', 'Data', 'Hora', 'Saldo', 'Destino']],
+      head: [['ID', 'Nome', 'Produto', 'QTD', 'Valor', 'Data', 'Hora']],
       body: peopleDetailedData.map((row) => [
         String(row.ID),
         String(row.Nome),
@@ -722,22 +792,18 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
         String(row.QTD),
         row.Valor ? formatCurrency(Number(row.Valor)) : '',
         String(row.Data),
-        String(row.Hora),
-        formatCurrency(Number(row['Saldo Final'])),
-        String(row['Destino Saldo'])
+        String(row.Hora)
       ]),
       startY: yPosition,
       ...getTableTheme(7.5),
       columnStyles: {
-        0: { cellWidth: 14 },
+        0: { cellWidth: 16 },
         1: { cellWidth: 30 },
-        2: { cellWidth: 54 },
-        3: { cellWidth: 10, halign: 'center' },
-        4: { cellWidth: 18, halign: 'right' },
-        5: { cellWidth: 18, halign: 'center' },
-        6: { cellWidth: 16, halign: 'center' },
-        7: { cellWidth: 18, halign: 'right' },
-        8: { cellWidth: 20, halign: 'center' }
+        2: { cellWidth: 62 },
+        3: { cellWidth: 12, halign: 'center' },
+        4: { cellWidth: 22, halign: 'right' },
+        5: { cellWidth: 20, halign: 'center' },
+        6: { cellWidth: 16, halign: 'center' }
       }
     });
 
@@ -757,12 +823,12 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       startY: yPosition,
       ...getTableTheme(8.4),
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 56 },
-        2: { cellWidth: 22, halign: 'center' },
-        3: { cellWidth: 22, halign: 'right' },
-        4: { cellWidth: 24, halign: 'right' },
-        5: { cellWidth: 20, halign: 'right' },
+        0: { cellWidth: 28 },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 18, halign: 'center' },
+        3: { cellWidth: 20, halign: 'right' },
+        4: { cellWidth: 22, halign: 'right' },
+        5: { cellWidth: 18, halign: 'right' },
         6: { cellWidth: 18, halign: 'center' }
       }
     });
@@ -779,21 +845,16 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       const quantitySum = salesData ? salesData.quantity : 0;
       const totalSum = salesData ? salesData.total : 0;
 
-      const unitCost = getUnitCost(product.costPrice, product.purchasedQuantity);
-      const roundedUnitCost = Math.round(unitCost * 100) / 100;
-      const profit = roundedUnitCost > 0
-        ? Math.round(((product.price - roundedUnitCost) * quantitySum) * 100) / 100
-        : 0;
-      const remainingQuantity = product.stock;
+      const totalRevenue = quantitySum * product.price;
+      const totalCost = product.costPrice || 0;
+      const profit = Math.round((totalRevenue - totalCost) * 100) / 100;
       
       productsData.push([
         product.barcode || '-',
         product.name,
         quantitySum.toString(),
         `R$ ${totalSum.toFixed(2)}`,
-        `R$ ${product.price.toFixed(2)}`,
-        remainingQuantity.toString(),
-        roundedUnitCost > 0 ? `R$ ${profit.toFixed(2)}` : '-'
+        formatCurrency(profit)
       ]);
       
       totalGeralVendas += totalSum;
@@ -806,13 +867,11 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       'TOTAL GERAL',
       '',
       `R$ ${totalGeralVendas.toFixed(2)}`,
-      '',
-      '',
-      totalGeralLucro > 0 ? `R$ ${totalGeralLucro.toFixed(2)}` : '-'
+      formatCurrency(totalGeralLucro)
     ]);
 
     autoTable(doc, {
-      head: [['Código', 'Produto', 'Qtd Vendida', 'Total Vendas', 'Preço Unit.', 'Sobrou', 'Lucro']],
+      head: [['Código', 'Produto', 'Qtd Vendida', 'Total Vendas', 'Lucro']],
       body: productsData,
       startY: yPosition,
       ...getTableTheme(8.2),
@@ -822,13 +881,11 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
         fontStyle: 'bold'
       },
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 52 },
-        2: { cellWidth: 20, halign: 'center' },
-        3: { cellWidth: 28, halign: 'right' },
-        4: { cellWidth: 22, halign: 'right' },
-        5: { cellWidth: 18, halign: 'center' },
-        6: { cellWidth: 26, halign: 'right' }
+        0: { cellWidth: 28 },
+        1: { cellWidth: 68 },
+        2: { cellWidth: 24, halign: 'center' },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 30, halign: 'right' }
       },
       didParseCell: function(data) {
         if (data.row.index === productsData.length - 1) {
