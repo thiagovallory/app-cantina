@@ -45,6 +45,8 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({ person, onClose })
   const MISSIONARY_OFFER_ITEM_ID = 'missionary-offer';
   const { products, addPurchase, getProductByBarcode } = useApp();
   const [cartItems, setCartItems] = useState<PurchaseItem[]>([]);
+  const [editingCartQuantityId, setEditingCartQuantityId] = useState<string | null>(null);
+  const [editingCartQuantityValue, setEditingCartQuantityValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [missionaryOfferAmount, setMissionaryOfferAmount] = useState('');
@@ -144,6 +146,32 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({ person, onClose })
           : item
       ));
     }
+  };
+
+  const startQuantityEdit = (item: PurchaseItem) => {
+    if (item.productId === MISSIONARY_OFFER_ITEM_ID) {
+      return;
+    }
+
+    setEditingCartQuantityId(item.productId);
+    setEditingCartQuantityValue(String(item.quantity));
+  };
+
+  const cancelQuantityEdit = () => {
+    setEditingCartQuantityId(null);
+    setEditingCartQuantityValue('');
+  };
+
+  const saveQuantityEdit = (productId: string) => {
+    const parsedQuantity = parseInt(editingCartQuantityValue, 10);
+
+    if (Number.isNaN(parsedQuantity) || parsedQuantity < 0) {
+      cancelQuantityEdit();
+      return;
+    }
+
+    updateQuantity(productId, parsedQuantity);
+    cancelQuantityEdit();
   };
 
   const getTotalAmount = useCallback(() => {
@@ -605,9 +633,43 @@ export const PurchaseModal: React.FC<PurchaseModalProps> = ({ person, onClose })
                               >
                                 <Remove fontSize="small" />
                               </IconButton>
-                              <Typography sx={{ minWidth: 20, textAlign: 'center' }}>
-                                {item.quantity}
-                              </Typography>
+                              {editingCartQuantityId === item.productId ? (
+                                <TextField
+                                  size="small"
+                                  type="number"
+                                  value={editingCartQuantityValue}
+                                  onChange={(event) => setEditingCartQuantityValue(event.target.value)}
+                                  onBlur={() => saveQuantityEdit(item.productId)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                      event.preventDefault();
+                                      saveQuantityEdit(item.productId);
+                                    }
+
+                                    if (event.key === 'Escape') {
+                                      event.preventDefault();
+                                      cancelQuantityEdit();
+                                    }
+                                  }}
+                                  autoFocus
+                                  inputProps={{ min: 0, style: { textAlign: 'center', width: 40, padding: '6px 4px' } }}
+                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                                />
+                              ) : (
+                                <Typography
+                                  onClick={() => startQuantityEdit(item)}
+                                  sx={{
+                                    minWidth: 28,
+                                    px: 0.75,
+                                    textAlign: 'center',
+                                    cursor: 'pointer',
+                                    borderRadius: 1,
+                                    '&:hover': { bgcolor: 'action.hover' }
+                                  }}
+                                >
+                                  {item.quantity}
+                                </Typography>
+                              )}
                               <IconButton 
                                 size="small" 
                                 onClick={() => updateQuantity(item.productId, item.quantity + 1)}

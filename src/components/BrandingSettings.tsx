@@ -12,7 +12,8 @@ import {
   Box,
   Typography,
   IconButton,
-  Divider
+  Divider,
+  InputAdornment
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -31,11 +32,12 @@ interface BrandingSettingsProps {
 export const BrandingSettings: React.FC<BrandingSettingsProps> = ({ open, onClose }) => {
   const { branding, updateBranding } = useApp();
   const safeMissionaryGoal = typeof branding.missionaryGoal === 'number' ? branding.missionaryGoal : 0;
+  const formatGoalInput = (value: number) => (value > 0 ? value.toFixed(2).replace('.', ',') : '');
   const [organizationName, setOrganizationName] = useState(branding.organizationName);
   const [logoUrl, setLogoUrl] = useState(branding.logoUrl);
   const [showLogo, setShowLogo] = useState(branding.showLogo);
   const [darkMode, setDarkMode] = useState(branding.darkMode);
-  const [missionaryGoal, setMissionaryGoal] = useState(safeMissionaryGoal.toString());
+  const [missionaryGoal, setMissionaryGoal] = useState(formatGoalInput(safeMissionaryGoal));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -47,8 +49,18 @@ export const BrandingSettings: React.FC<BrandingSettingsProps> = ({ open, onClos
     setLogoUrl(branding.logoUrl);
     setShowLogo(branding.showLogo);
     setDarkMode(branding.darkMode);
-    setMissionaryGoal(safeMissionaryGoal.toString());
+    setMissionaryGoal(formatGoalInput(safeMissionaryGoal));
   }, [open, branding.organizationName, branding.logoUrl, branding.showLogo, branding.darkMode, safeMissionaryGoal]);
+
+  const parseCurrencyInput = (value: string) => {
+    if (!value.trim()) {
+      return 0;
+    }
+
+    const normalized = value.replace(/\./g, '').replace(',', '.');
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
 
   const handleSave = async () => {
     await updateBranding({
@@ -56,7 +68,7 @@ export const BrandingSettings: React.FC<BrandingSettingsProps> = ({ open, onClos
       logoUrl,
       showLogo,
       darkMode,
-      missionaryGoal: parseFloat(missionaryGoal) || 0
+      missionaryGoal: parseCurrencyInput(missionaryGoal)
     });
     onClose();
   };
@@ -67,7 +79,7 @@ export const BrandingSettings: React.FC<BrandingSettingsProps> = ({ open, onClos
     setLogoUrl(branding.logoUrl);
     setShowLogo(branding.showLogo);
     setDarkMode(branding.darkMode);
-    setMissionaryGoal(safeMissionaryGoal.toString());
+    setMissionaryGoal(formatGoalInput(safeMissionaryGoal));
     onClose();
   };
 
@@ -94,7 +106,7 @@ export const BrandingSettings: React.FC<BrandingSettingsProps> = ({ open, onClos
     setLogoUrl('/LOGO.png');
     setShowLogo(true);
     setDarkMode(false);
-    setMissionaryGoal('0');
+    setMissionaryGoal('');
   };
 
   return (
@@ -144,17 +156,23 @@ export const BrandingSettings: React.FC<BrandingSettingsProps> = ({ open, onClos
             <TextField
               label="Meta de Oferta Missionária"
               value={missionaryGoal}
-              onChange={(e) => setMissionaryGoal(e.target.value)}
-              type="number"
+              onChange={(e) => {
+                const nextValue = e.target.value.replace(/[^\d.,]/g, '');
+                setMissionaryGoal(nextValue);
+              }}
               fullWidth
               variant="outlined"
+              placeholder="0,00"
               helperText="Valor usado no indicador de progresso do topo"
               InputProps={{
-                startAdornment: <Typography sx={{ mr: 1 }}>R$</Typography>
+                startAdornment: (
+                  <InputAdornment position="start">
+                    R$
+                  </InputAdornment>
+                )
               }}
               inputProps={{
-                min: '0',
-                step: '0.01'
+                inputMode: 'decimal'
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {

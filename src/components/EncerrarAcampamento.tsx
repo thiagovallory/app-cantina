@@ -275,7 +275,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       // Gerar todos os relatórios em CSV
       await generateFinalReportsCSV(reportAssets, reportsGenerated);
 
-      // Gerar dossie final em PDF com todas as secoes para impressao
+      // Gerar dossiê final em PDF com todas as seções para impressão
       await generateFinalReportsPDF(reportAssets, reportsGenerated);
 
       await downloadReportsZip(reportAssets);
@@ -680,7 +680,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(11);
     doc.setTextColor(...palette.muted);
-    doc.text(`Documento consolidado para conferencia e impressao • ${formatDateTime()}`, margin, coverY);
+    doc.text(`Documento consolidado para conferência e impressão • ${formatDateTime()}`, margin, coverY);
 
     coverY += 16;
     coverY = drawSummaryCards([
@@ -696,10 +696,10 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
     doc.line(margin, coverY + 2, pageWidth - margin, coverY + 2);
     doc.setFontSize(10);
     doc.setTextColor(...palette.muted);
-    doc.text('Conteudo: resumo executivo, saldos finais, pessoas, historico, produtos e vendas.', pageWidth / 2, coverY + 10, { align: 'center' });
+    doc.text('Conteúdo: resumo executivo, saldos finais, pessoas, histórico, produtos e vendas.', pageWidth / 2, coverY + 10, { align: 'center' });
 
     doc.addPage();
-    yPosition = drawPageHeader('Resumo Executivo', 'Visao geral do encerramento do acampamento');
+    yPosition = drawPageHeader('Resumo Executivo', 'Visão geral do encerramento do acampamento');
 
     const summaryData = [
       ['Total de Pessoas', people.length.toString()],
@@ -758,7 +758,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
     doc.addPage();
     yPosition = drawPageHeader('Pessoas • Lista Simples', 'Panorama final por pessoa');
     autoTable(doc, {
-      head: [['ID', 'Nome', 'Deposito Inicial', 'Compras', 'Total Gasto', 'Saldo Final', 'Destino']],
+      head: [['ID', 'Nome', 'Depósito Inicial', 'Compras', 'Total Gasto', 'Saldo Final', 'Destino']],
       body: peopleSimpleData.map((row) => [
         String(row.ID),
         String(row.Nome),
@@ -782,7 +782,7 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
     });
 
     doc.addPage();
-    yPosition = drawPageHeader('Pessoas • Historico Completo', 'Lancamentos detalhados por pessoa');
+    yPosition = drawPageHeader('Pessoas • Histórico Completo', 'Lançamentos detalhados por pessoa');
     autoTable(doc, {
       head: [['ID', 'Nome', 'Produto', 'QTD', 'Valor', 'Data', 'Hora']],
       body: peopleDetailedData.map((row) => [
@@ -924,9 +924,9 @@ export const EncerrarAcampamento: React.FC<EncerrarAcampamentoProps> = ({ open, 
       <DialogContent>
         {step === 'confirm' && (
           <Stack spacing={3}>
-            <Alert severity="warning">
+            <Alert severity="warning" icon={false}>
               <Typography variant="h6" gutterBottom>
-                ⚠️ ATENÇÃO: Esta ação não pode ser desfeita!
+                ATENÇÃO: Esta ação não pode ser desfeita!
               </Typography>
               <Typography variant="body1">
                 O encerramento do acampamento irá:

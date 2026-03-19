@@ -84,7 +84,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
         }
       } catch (err) {
         console.error('Erro ao inicializar scanner:', err);
-        setError('Nao foi possivel acessar a camera neste dispositivo ou navegador.');
+        setError('Não foi possível acessar a câmera neste dispositivo ou navegador.');
       }
     };
 
@@ -135,9 +135,9 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
             {error}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            • Certifique-se de que o navegador tem permissao para acessar a camera<br/>
-            • Em celular, a camera no navegador normalmente exige HTTPS ou `localhost`<br/>
-            • Verifique se a camera nao esta sendo usada por outro app
+            • Certifique-se de que o navegador tem permissão para acessar a câmera<br/>
+            • Em celular, a câmera no navegador normalmente exige HTTPS ou `localhost`<br/>
+            • Verifique se a câmera não está sendo usada por outro app
           </Typography>
         </Paper>
       </Box>
@@ -193,7 +193,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
             }
           }}
         >
-          Trocar camera
+          Trocar câmera
         </Button>
       )}
 
@@ -287,7 +287,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
           textShadow: '0 0 10px rgba(0,0,0,0.8)'
         }}
       >
-        Posicione o codigo de barras dentro do quadro vermelho
+        Posicione o código de barras dentro do quadro vermelho
       </Typography>
 
       <Typography
@@ -299,7 +299,7 @@ export const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose 
           textShadow: '0 0 10px rgba(0,0,0,0.8)'
         }}
       >
-        Mantenha o codigo bem iluminado e centralizado
+        Mantenha o código bem iluminado e centralizado
       </Typography>
 
       <Typography

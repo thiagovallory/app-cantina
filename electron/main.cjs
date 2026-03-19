@@ -71,7 +71,7 @@ async function findAvailablePort() {
     }
   }
 
-  throw new Error('Nao foi possivel encontrar uma porta local livre para iniciar o servidor interno.');
+  throw new Error('Não foi possível encontrar uma porta local livre para iniciar o servidor interno.');
 }
 
 function createWindow() {
@@ -118,11 +118,11 @@ function createWindow() {
     await dialog.showMessageBox({
       type: 'error',
       title: 'Falha ao abrir o App Cantina',
-      message: 'O aplicativo nao conseguiu carregar a interface.',
+      message: 'O aplicativo não conseguiu carregar a interface.',
       detail: [
         `URL: ${validatedURL}`,
-        `Codigo: ${errorCode}`,
-        `Descricao: ${errorDescription}`,
+        `Código: ${errorCode}`,
+        `Descrição: ${errorDescription}`,
         `Porta local: ${desktopPort}`
       ].join('\n')
     });
@@ -152,16 +152,40 @@ async function ensureDesktopServer() {
   logStartupStep('Preparando diretorio de dados e log do desktop.');
   process.env.APP_CANTINA_DATA_DIR = path.join(app.getPath('userData'), 'data');
   process.env.APP_CANTINA_LOG_FILE = logFilePath;
-  logStartupStep('Procurando uma porta local livre para o servidor interno.');
-  desktopPort = await findAvailablePort();
-  writeLog('INFO', `Porta local selecionada para o servidor interno: ${desktopPort}`);
-  logStartupStep(`Porta ${desktopPort} reservada para o servidor interno.`);
   logStartupStep('Carregando modulo do backend empacotado.');
   const serverModule = require('../server/src/index.cjs');
 
   stopServer = serverModule.stopServer;
-  logStartupStep('Iniciando o servidor interno do aplicativo.');
-  await serverModule.startServer(desktopPort);
+  let lastError;
+
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    logStartupStep(`Procurando uma porta local livre para o servidor interno (tentativa ${attempt}).`);
+    desktopPort = await findAvailablePort();
+    process.env.PORT = String(desktopPort);
+    writeLog('INFO', `Porta local selecionada para o servidor interno: ${desktopPort}`);
+    logStartupStep(`Porta ${desktopPort} reservada para o servidor interno.`);
+    logStartupStep('Iniciando o servidor interno do aplicativo.');
+
+    try {
+      await serverModule.startServer(desktopPort);
+      lastError = null;
+      break;
+    } catch (error) {
+      lastError = error;
+      writeLog('ERROR', `Falha ao iniciar o servidor interno na porta ${desktopPort}.`, error);
+
+      if (!(error instanceof Error) || !String(error.message).includes('EADDRINUSE') || attempt === 5) {
+        throw error;
+      }
+
+      writeLog('INFO', `A porta ${desktopPort} ficou indisponivel durante a inicializacao. Tentando novamente.`);
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
   serverStartedByElectron = true;
   logStartupStep(`Servidor interno iniciado com sucesso na porta ${desktopPort}.`);
   writeLog('INFO', 'Servidor interno iniciado com sucesso.');
@@ -181,7 +205,7 @@ function createMenu() {
               title: 'Sobre o App Cantina',
               message: 'App Cantina',
               detail: [
-                'Sistema de gestao de cantina para eventos, retiros e acampamentos.',
+                'Sistema de gestão de cantina para eventos, retiros e acampamentos.',
                 `Versao: ${app.getVersion()}`,
                 'Distribuicao desktop para Windows e macOS.'
               ].join('\n')
@@ -203,6 +227,8 @@ function createMenu() {
       submenu: [
         { label: 'Desfazer', accelerator: 'CmdOrCtrl+Z', role: 'undo' },
         { label: 'Refazer', accelerator: 'Shift+CmdOrCtrl+Z', role: 'redo' },
+        { type: 'separator' },
+        { label: 'Selecionar Tudo', accelerator: 'CmdOrCtrl+A', role: 'selectAll' },
         { type: 'separator' },
         { label: 'Cortar', accelerator: 'CmdOrCtrl+X', role: 'cut' },
         { label: 'Copiar', accelerator: 'CmdOrCtrl+C', role: 'copy' },

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { ReactNode } from 'react';
 import { io } from 'socket.io-client';
 import type { Person, Product, PurchaseItem, BrandingConfig } from '../types/index';
+import { PEOPLE_FIELD_ALIASES, PRODUCT_FIELD_ALIASES } from '../lib/csvSchemas';
 
 type CSVRow = Record<string, unknown>;
 
@@ -339,12 +340,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     for (let i = 0; i < csvData.length; i++) {
       const row = csvData[i];
       try {
-        const nameValue = getProductRowValue(row, ['name', 'Name', 'nome', 'Nome', 'product', 'Product', 'produto', 'Produto']);
-        const barcodeValue = getProductRowValue(row, ['barcode', 'Barcode', 'codigo', 'Código', 'codigo de barras', 'Código de Barras']);
-        const priceValue = getProductRowValue(row, ['price', 'Price', 'preco', 'Preço', 'valor', 'Valor']);
-        const stockValue = getProductRowValue(row, ['stock', 'Stock', 'estoque', 'Estoque', 'quantidade', 'Quantidade']);
-        const costPriceValue = getProductRowValue(row, ['costPrice', 'CostPrice', 'cost', 'Cost', 'custo', 'Custo']);
-        const purchasedQuantityValue = getProductRowValue(row, ['purchasedQuantity', 'PurchasedQuantity', 'qtd comprada', 'Qtd Comprada', 'quantidade comprada', 'Quantidade Comprada']);
+        const nameValue = getProductRowValue(row, [...PRODUCT_FIELD_ALIASES.name]);
+        const barcodeValue = getProductRowValue(row, [...PRODUCT_FIELD_ALIASES.barcode]);
+        const priceValue = getProductRowValue(row, [...PRODUCT_FIELD_ALIASES.price]);
+        const stockValue = getProductRowValue(row, [...PRODUCT_FIELD_ALIASES.stock]);
+        const costPriceValue = getProductRowValue(row, [...PRODUCT_FIELD_ALIASES.costPrice]);
+        const purchasedQuantityValue = getProductRowValue(row, [...PRODUCT_FIELD_ALIASES.purchasedQuantity]);
 
         // Validate required fields
         if (!nameValue || !priceValue) {
@@ -354,9 +355,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
         const normalizedName = String(nameValue).trim();
         const price = parseFloat(String(priceValue).replace(',', '.').replace('R$', '').trim());
-        const stock = parseInt(String(stockValue ?? '0').trim(), 10);
         const costPrice = parseOptionalDecimal(costPriceValue);
         const purchasedQuantity = parseOptionalInteger(purchasedQuantityValue);
+        const stock = stockValue !== undefined && stockValue !== null && String(stockValue).trim() !== ''
+          ? parseInt(String(stockValue).trim(), 10)
+          : (purchasedQuantity ?? 0);
         
         if (isNaN(price) || price < 0) {
           results.errors.push(`Linha ${i + 2}: Preço inválido`);
@@ -379,7 +382,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         }
 
         // Check if product exists by barcode
-        const normalizedBarcode = barcodeValue ? String(barcodeValue).trim() : undefined;
+        const normalizedBarcode = barcodeValue
+          ? String(barcodeValue).trim().replace(/^="+|"+$/g, '').replace(/^='|'+$/g, '')
+          : undefined;
         const existingProduct = normalizedBarcode ? getProductByBarcode(normalizedBarcode) : null;
         
         if (existingProduct) {
@@ -422,7 +427,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       const row = csvData[i];
       try {
         // Tenta encontrar o nome em diferentes possíveis campos
-        const rawName = row['Nome'] || row['name'] || row.nome || row.Name;
+        const rawName = getProductRowValue(row, [...PEOPLE_FIELD_ALIASES.name]);
         const name = rawName ? String(rawName).trim() : '';
         
         if (!name) {
@@ -431,10 +436,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         }
 
         // Tenta encontrar o ID em diferentes campos
-        const customId = row['ID Personalizado'] || row['customId'] || row.customId || row.id || row.codigo;
+        const customId = getProductRowValue(row, [...PEOPLE_FIELD_ALIASES.customId]);
         
         // Tenta encontrar o depósito em diferentes campos
-        const depositValue = row['Depósito Inicial'] || row['Saldo Atual'] || row.initialDeposit || row.deposito || row.saldo || '0';
+        const depositValue = getProductRowValue(row, [...PEOPLE_FIELD_ALIASES.initialDeposit]) || '0';
         const initialDeposit = parseFloat(String(depositValue).replace(',', '.').replace('R$', '').trim());
         
         if (isNaN(initialDeposit) || initialDeposit < 0) {

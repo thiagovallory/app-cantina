@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const { db, getBootstrapData } = require('./db.cjs');
 
 const app = express();
+const HOST = '127.0.0.1';
 const PORT = Number(process.env.PORT || 3000);
 const httpServer = http.createServer(app);
 const io = new Server(httpServer, {
@@ -782,11 +783,11 @@ function startServer(port = PORT) {
 
     writeServerLog('INFO', `Iniciando servidor interno na porta ${port}.`);
     httpServer.once('error', reject);
-    httpServer.listen(port, () => {
+    httpServer.listen(port, HOST, () => {
       httpServer.off('error', reject);
       startedServer = httpServer;
-      console.log(`Servidor App Cantina rodando em http://localhost:${port}`);
-      writeServerLog('INFO', `Servidor App Cantina rodando em http://localhost:${port}`);
+      console.log(`Servidor App Cantina rodando em http://${HOST}:${port}`);
+      writeServerLog('INFO', `Servidor App Cantina rodando em http://${HOST}:${port}`);
       resolve(httpServer);
     });
   });

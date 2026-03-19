@@ -29,13 +29,14 @@ import Papa from 'papaparse';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useApp } from '../context/AppContext';
+import { PRODUCT_IMPORT_HEADERS } from '../lib/csvSchemas';
 
 interface ReportsProps {
   open: boolean;
   onClose: () => void;
 }
 
-type ReportType = 'pessoas-simples' | 'pessoas-detalhado' | 'sales-summary';
+type ReportType = 'pessoas-simples' | 'pessoas-detalhado' | 'sales-summary' | 'products-catalog';
 type OutputFormat = 'csv' | 'pdf';
 type DetailedCsvRow = Record<string, string | number>;
 type PdfCellConfig = {
@@ -49,6 +50,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
   const [selectedReport, setSelectedReport] = useState<ReportType>('pessoas-simples');
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('pdf');
   const sortedPeople = [...people].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+  const sortedProducts = [...products].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
 
   const getUnitCost = (costPrice?: number, purchasedQuantity?: number) => {
     if (typeof costPrice !== 'number' || typeof purchasedQuantity !== 'number' || purchasedQuantity <= 0) {
@@ -132,7 +134,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
 
   const generatePeopleSimpleCSV = () => {
     const csvData = sortedPeople.map(person => ({
-      'ID Personalizado': person.customId ? `="${person.customId}"` : '', // Força texto
+      'ID Personalizado': person.customId || '',
       'Nome': person.name,
       'Depósito Inicial': person.initialDeposit.toFixed(2),
       'Total Compras': person.purchases.length,
@@ -149,7 +151,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
     
     sortedPeople.forEach(person => {
       csvData.push({
-        'ID Personalizado': person.customId || '',
+        'ID': person.customId || '',
         'Nome': `=== ${person.name.toUpperCase()} ===`,
         'Produto': '',
         'Quantidade': '',
@@ -160,7 +162,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
 
       if (person.purchases.length === 0) {
         csvData.push({
-          'ID Personalizado': person.customId || '',
+          'ID': person.customId || '',
           'Nome': person.name,
           'Produto': 'Nenhuma compra',
           'Quantidade': '',
@@ -173,7 +175,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
           purchase.items.forEach(item => {
             const purchaseDate = new Date(purchase.date);
             csvData.push({
-              'ID Personalizado': person.customId ? `="${person.customId}"` : '',
+              'ID': person.customId || '',
               'Nome': person.name,
               'Produto': cleanTextForPDF(item.productName), // Remove emojis como no PDF
               'Quantidade': item.quantity,
@@ -186,7 +188,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
       }
 
       csvData.push({
-        'ID Personalizado': '',
+        'ID': '',
         'Nome': '',
         'Produto': '',
         'Quantidade': '',
@@ -205,7 +207,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
     const { rows, totalCost, totalSales, totalProfit } = buildSalesSummaryRows();
     const csvData: Array<Record<string, string | number>> = rows
       .map((row) => ({
-        'Código': row.code ? `="${row.code}"` : '',
+        'Código': row.code || '',
         'Produto': row.product,
         'QTD': row.purchasedQuantity,
         'Custo': row.cost.toFixed(2),
@@ -236,6 +238,20 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
     downloadCSV(csv, `${orgSlug}-resumo-vendas.csv`);
   };
 
+  const generateProductsCatalogCSV = () => {
+    const csvData = sortedProducts.map((product) => ({
+      [PRODUCT_IMPORT_HEADERS[0]]: product.barcode || '',
+      [PRODUCT_IMPORT_HEADERS[1]]: cleanTextForPDF(product.name),
+      [PRODUCT_IMPORT_HEADERS[2]]: product.purchasedQuantity ?? product.stock,
+      [PRODUCT_IMPORT_HEADERS[3]]: (product.costPrice ?? 0).toFixed(2),
+      [PRODUCT_IMPORT_HEADERS[4]]: product.price.toFixed(2)
+    }));
+
+    const csv = Papa.unparse(csvData, { delimiter: ';' });
+    const orgSlug = branding.organizationName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    downloadCSV(csv, `${orgSlug}-produtos.csv`);
+  };
+
   const generatePDF = async () => {
     const doc = new jsPDF({
       orientation: 'portrait'
@@ -246,7 +262,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
     let yPosition = 18;
     const orgSlug = branding.organizationName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     const reportFileSlug = selectedReport === 'sales-summary' ? 'vendas' : selectedReport;
-    const fileName = `${orgSlug}-relatorio-${reportFileSlug}-${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `${orgSlug}-relatório-${reportFileSlug}-${new Date().toISOString().split('T')[0]}.pdf`;
     const palette = {
       ink: [22, 33, 52] as [number, number, number],
       muted: [92, 104, 128] as [number, number, number],
@@ -257,9 +273,10 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
     };
     const formatCurrency = (value: number) => `R$ ${value.toFixed(2)}`;
     const reportTitleMap: Record<ReportType, string> = {
-      'pessoas-simples': 'Relatorio de Pessoas',
-      'pessoas-detalhado': 'Relatorio de Pessoas com Historico',
-      'sales-summary': 'Relatorio de Vendas'
+      'pessoas-simples': 'Relatório de Pessoas',
+      'pessoas-detalhado': 'Relatório de Pessoas com Histórico',
+      'sales-summary': 'Relatório de Vendas',
+      'products-catalog': 'Relatório de Produtos'
     };
 
     const drawSummaryCards = (cards: Array<{ label: string; value: string }>) => {
@@ -399,7 +416,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
       case 'pessoas-simples': {
         drawSummaryCards([
           { label: 'Pessoas', value: String(sortedPeople.length) },
-          { label: 'Depositos', value: formatCurrency(sortedPeople.reduce((sum, person) => sum + person.initialDeposit, 0)) },
+          { label: 'Depósitos', value: formatCurrency(sortedPeople.reduce((sum, person) => sum + person.initialDeposit, 0)) },
           { label: 'Saldo Atual', value: formatCurrency(sortedPeople.reduce((sum, person) => sum + person.balance, 0)) }
         ]);
 
@@ -450,7 +467,7 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...palette.ink);
-        doc.text('Historico detalhado de compras por pessoa', margin, yPosition);
+        doc.text('Histórico detalhado de compras por pessoa', margin, yPosition);
         yPosition += 7;
 
         const detailedData: Array<Array<string | PdfCellConfig>> = [];
@@ -531,7 +548,6 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
 
         const salesTableData = rows
           .map((row) => [
-            row.code || '-',
             row.product,
             row.purchasedQuantity.toString(),
             formatCurrency(row.cost),
@@ -542,24 +558,59 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
             row.stock.toString(),
             formatCurrency(row.profit)
           ])
-          .sort((a, b) => parseFloat(b[7].replace('R$ ', '')) - parseFloat(a[7].replace('R$ ', '')));
+          .sort((a, b) => parseFloat(b[6].replace('R$ ', '')) - parseFloat(a[6].replace('R$ ', '')));
 
         autoTable(doc, {
-          head: [['Código', 'Produto', 'QTD', 'Custo', 'V. Unit.', 'V. Vend.', 'QTD V.', 'T. Vend.', 'Estq.', 'Lucro']],
+          head: [['Produto', 'QTD', 'Custo', 'V. Unit.', 'V. Vend.', 'QTD V.', 'T. Vend.', 'Estq.', 'Lucro']],
           body: salesTableData,
           startY: yPosition,
           ...getTableTheme(8.5),
           columnStyles: {
-            0: { cellWidth: 20 },
-            1: { cellWidth: 40 },
-            2: { cellWidth: 12, halign: 'center' },
+            0: { cellWidth: 52 },
+            1: { cellWidth: 12, halign: 'center' },
+            2: { cellWidth: 19, halign: 'right' },
             3: { cellWidth: 19, halign: 'right' },
             4: { cellWidth: 19, halign: 'right' },
-            5: { cellWidth: 19, halign: 'right' },
-            6: { cellWidth: 15, halign: 'center' },
-            7: { cellWidth: 21, halign: 'right' },
-            8: { cellWidth: 12, halign: 'center' },
-            9: { cellWidth: 21, halign: 'right' }
+            5: { cellWidth: 15, halign: 'center' },
+            6: { cellWidth: 22, halign: 'right' },
+            7: { cellWidth: 12, halign: 'center' },
+            8: { cellWidth: 20, halign: 'right' }
+          }
+        });
+        break;
+      }
+
+      case 'products-catalog': {
+        drawSummaryCards([
+          { label: 'Produtos', value: String(sortedProducts.length) },
+          { label: 'Qtd Comprada', value: String(sortedProducts.reduce((sum, product) => sum + (product.purchasedQuantity ?? product.stock), 0)) },
+          { label: 'Custo Total', value: formatCurrency(sortedProducts.reduce((sum, product) => sum + (product.costPrice ?? 0), 0)) },
+          { label: 'Preco Medio', value: formatCurrency(sortedProducts.length > 0 ? sortedProducts.reduce((sum, product) => sum + product.price, 0) / sortedProducts.length : 0) }
+        ]);
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...palette.ink);
+        doc.text('Lista de produtos cadastrados', margin, yPosition);
+        yPosition += 7;
+
+        autoTable(doc, {
+          head: [['Código', 'Produto', 'Qtd Comprada', 'Custo', 'Preço']],
+          body: sortedProducts.map((product) => [
+            product.barcode || '',
+            cleanTextForPDF(product.name),
+            String(product.purchasedQuantity ?? product.stock),
+            formatCurrency(product.costPrice ?? 0),
+            formatCurrency(product.price),
+          ]),
+          startY: yPosition,
+          ...getTableTheme(9.2),
+          columnStyles: {
+            0: { cellWidth: 32 },
+            1: { cellWidth: 76 },
+            2: { cellWidth: 28, halign: 'center' },
+            3: { cellWidth: 24, halign: 'right' },
+            4: { cellWidth: 24, halign: 'right' }
           }
         });
         break;
@@ -594,6 +645,9 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
         case 'sales-summary':
           generateSalesSummaryCSV();
           break;
+        case 'products-catalog':
+          generateProductsCatalogCSV();
+          break;
       }
     } else {
       generatePDF();
@@ -608,6 +662,8 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
         return 'Lista completa com histórico detalhado de todas as compras';
       case 'sales-summary':
         return 'Resumo das vendas por produto com totais e estatísticas';
+      case 'products-catalog':
+        return 'Lista de produtos cadastrados e exportação CSV no formato de cadastro';
       default:
         return '';
     }
@@ -631,6 +687,12 @@ export const Reports: React.FC<ReportsProps> = ({ open, onClose }) => {
       title: 'Resumo de Vendas',
       description: 'Estatísticas de vendas por produto e totais gerais',
       icon: <AssessmentIcon />
+    },
+    {
+      id: 'products-catalog',
+      title: 'Produtos Cadastrados',
+      description: 'Lista de produtos e CSV com Código, Produto, Qtd Comprada, Custo e Preço',
+      icon: <FileDownloadIcon />
     }
   ];
 

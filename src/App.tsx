@@ -31,7 +31,6 @@ import {
   QrCodeScanner as QrCodeScannerIcon,
   MoreVert as MoreVertIcon,
   Assessment as AssessmentIcon,
-  Upload as UploadIcon,
   FileUpload as FileUploadIcon,
   ExitToApp as ExitToAppIcon,
   Settings as SettingsIcon,
@@ -108,7 +107,6 @@ function AppContent() {
   const [purchasePerson, setPurchasePerson] = useState<Person | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCSVImport, setShowCSVImport] = useState(false);
-  const [csvImportType, setCSVImportType] = useState<'products' | 'people'>('products');
   const [showReports, setShowReports] = useState(false);
   const [showEncerrarAcampamento, setShowEncerrarAcampamento] = useState(false);
   const [showBrandingSettings, setShowBrandingSettings] = useState(false);
@@ -266,8 +264,7 @@ function AppContent() {
     handleMenuClose();
   };
 
-  const handleImportCSV = (type: 'products' | 'people') => {
-    setCSVImportType(type);
+  const handleImportCSV = () => {
     openLazyPanel(setShowCSVImport);
   };
 
@@ -292,13 +289,17 @@ function AppContent() {
       <AppBar
         position="sticky"
         elevation={0}
-        sx={{
-          bgcolor: 'rgba(248, 251, 255, 0.84)',
+        sx={(theme) => ({
+          bgcolor: theme.palette.mode === 'dark'
+            ? 'rgba(12, 18, 28, 0.86)'
+            : 'rgba(248, 251, 255, 0.84)',
           color: 'text.primary',
           backdropFilter: 'blur(14px)',
           borderBottom: '1px solid',
-          borderColor: 'divider'
-        }}
+          borderColor: theme.palette.mode === 'dark'
+            ? 'rgba(255,255,255,0.08)'
+            : 'divider'
+        })}
       >
         <Toolbar>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1 }}>
@@ -319,12 +320,16 @@ function AppContent() {
             <Chip
               label={`${appSummary.peopleCount} pessoas`}
               size="small"
-              sx={{
+              sx={(theme) => ({
                 borderRadius: 999,
-                bgcolor: 'rgba(0, 100, 149, 0.08)',
-                color: 'primary.dark',
+                bgcolor: theme.palette.mode === 'dark'
+                  ? 'rgba(76, 172, 214, 0.18)'
+                  : 'rgba(0, 100, 149, 0.08)',
+                color: theme.palette.mode === 'dark'
+                  ? 'primary.light'
+                  : 'primary.dark',
                 fontWeight: 700
-              }}
+              })}
             />
             <Box sx={{ ml: 2 }}>
               <NetworkStatus />
@@ -385,18 +390,35 @@ function AppContent() {
               vertical: 'top',
               horizontal: 'right',
             }}
+            slotProps={{
+              paper: {
+                sx: (theme) => ({
+                  mt: 1,
+                  minWidth: 240,
+                  borderRadius: 2,
+                  bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'background.paper',
+                  color: 'text.primary',
+                  border: '1px solid',
+                  borderColor: theme.palette.mode === 'dark'
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'divider',
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 16px 40px rgba(0,0,0,0.45)'
+                    : '0 16px 40px rgba(15,23,42,0.12)',
+                  '& .MuiMenuItem-root:hover': {
+                    bgcolor: theme.palette.mode === 'dark'
+                      ? 'rgba(255,255,255,0.06)'
+                      : 'rgba(15,23,42,0.04)'
+                  }
+                })
+              }
+            }}
           >
-            <MenuItem onClick={() => handleImportCSV('products')}>
+            <MenuItem onClick={handleImportCSV}>
               <ListItemIcon>
                 <FileUploadIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Importar Produtos CSV</ListItemText>
-            </MenuItem>
-            <MenuItem onClick={() => handleImportCSV('people')}>
-              <ListItemIcon>
-                <UploadIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Importar Pessoas CSV</ListItemText>
+              <ListItemText>Importar CSV</ListItemText>
             </MenuItem>
             <MenuItem onClick={handleReports}>
               <ListItemIcon>
@@ -424,12 +446,14 @@ function AppContent() {
             </MenuItem>
             <MenuItem 
               onClick={handleEncerrarAcampamento}
-              sx={{ 
+              sx={(theme) => ({ 
                 color: 'warning.main',
                 '&:hover': { 
-                  bgcolor: 'warning.50' 
+                  bgcolor: theme.palette.mode === 'dark'
+                    ? 'rgba(255, 183, 77, 0.12)'
+                    : 'warning.50' 
                 }
-              }}
+              })}
             >
               <ListItemIcon>
                 <ExitToAppIcon fontSize="small" sx={{ color: 'warning.main' }} />
@@ -439,15 +463,21 @@ function AppContent() {
           </Menu>
         </Toolbar>
         <Box
-          sx={{
+          sx={(theme) => ({
             position: 'relative',
             width: '100%',
             overflow: 'hidden',
-            bgcolor: '#f0f0f0',
-            borderTop: '1px solid rgba(255,255,255,0.7)',
-            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)'
-          }}
+            bgcolor: theme.palette.mode === 'dark' ? '#14202b' : '#f0f0f0',
+            borderTop: theme.palette.mode === 'dark'
+              ? '1px solid rgba(255,255,255,0.06)'
+              : '1px solid rgba(255,255,255,0.7)',
+            borderBottom: theme.palette.mode === 'dark'
+              ? '1px solid rgba(255,255,255,0.08)'
+              : '1px solid rgba(0, 0, 0, 0.08)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
+              : 'inset 0 1px 0 rgba(255,255,255,0.6)'
+          })}
         >
           <Box
             sx={{
@@ -468,7 +498,7 @@ function AppContent() {
             }}
           />
           <Box
-            sx={{
+            sx={(theme) => ({
               position: 'relative',
               zIndex: 1,
               px: { xs: 2, md: 3 },
@@ -477,31 +507,37 @@ function AppContent() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 2,
-              color: 'common.black',
+              color: theme.palette.mode === 'dark' ? 'grey.100' : 'common.black',
               flexWrap: 'wrap',
               textAlign: 'center'
-            }}
+            })}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
               <VolunteerActivismIcon sx={{ fontSize: 20 }} />
               <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                Ofertas Missionaria
+                Ofertas Missionária
               </Typography>
             </Box>
             <Box
-              sx={{
+              sx={(theme) => ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1,
                 px: 1.5,
                 py: 0.25,
                 borderRadius: 999,
-                bgcolor: 'rgba(255,255,255,0.52)',
+                bgcolor: theme.palette.mode === 'dark'
+                  ? 'rgba(10,16,24,0.42)'
+                  : 'rgba(255,255,255,0.52)',
                 backdropFilter: 'blur(4px)',
-                border: '1px solid rgba(0,0,0,0.08)',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                border: theme.palette.mode === 'dark'
+                  ? '1px solid rgba(255,255,255,0.1)'
+                  : '1px solid rgba(0,0,0,0.08)',
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 1px 2px rgba(0,0,0,0.28)'
+                  : '0 1px 2px rgba(0,0,0,0.08)',
                 flexShrink: 0
-              }}
+              })}
             >
               <Typography variant="body2" sx={{ fontWeight: 800 }}>
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalMissionaryOffers)}
@@ -523,9 +559,15 @@ function AppContent() {
                 px: 1.25,
                 py: 0.25,
                 borderRadius: 999,
-                bgcolor: 'rgba(255,255,255,0.7)',
-                border: '1px solid rgba(0,0,0,0.08)',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+                bgcolor: (theme) => theme.palette.mode === 'dark'
+                  ? 'rgba(10,16,24,0.58)'
+                  : 'rgba(255,255,255,0.7)',
+                border: (theme) => theme.palette.mode === 'dark'
+                  ? '1px solid rgba(255,255,255,0.1)'
+                  : '1px solid rgba(0,0,0,0.08)',
+                boxShadow: (theme) => theme.palette.mode === 'dark'
+                  ? '0 1px 2px rgba(0,0,0,0.28)'
+                  : '0 1px 2px rgba(0,0,0,0.08)'
               }}
             >
               {missionaryGoal > 0 ? `${Math.round(missionaryProgress)}%` : '--'}
@@ -542,7 +584,7 @@ function AppContent() {
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
               <TextField
                 fullWidth
-                placeholder="Buscar pessoa por nome, ID, codigo ou QR... (Enter para abrir compra)"
+                placeholder="Buscar pessoa por nome, ID, código ou QR... (Enter para abrir compra)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyPress={handleSearchKeyPress}
@@ -665,7 +707,7 @@ function AppContent() {
           <CSVImport
             open={showCSVImport}
             onClose={() => setShowCSVImport(false)}
-            type={csvImportType}
+            type="auto"
           />
         )}
         {showReports && (

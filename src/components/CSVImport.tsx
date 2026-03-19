@@ -24,11 +24,12 @@ import {
 } from '@mui/icons-material';
 import Papa from 'papaparse';
 import { useApp } from '../context/AppContext';
+import { detectCsvImportType, PRODUCT_FIELD_ALIASES } from '../lib/csvSchemas';
 
 interface CSVImportProps {
   open: boolean;
   onClose: () => void;
-  type: 'products' | 'people';
+  type?: 'products' | 'people' | 'auto';
 }
 
 interface ImportResults {
@@ -40,7 +41,7 @@ interface ImportResults {
 
 // ConflictDialog removed - using window.confirm instead for simplicity
 
-export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type }) => {
+export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type = 'auto' }) => {
   const { importProductsFromCSV, importPeopleFromCSV } = useApp();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -76,16 +77,35 @@ export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type }) => 
         try {
           let importResults;
           const rows = result.data as Record<string, unknown>[];
-          
-          if (type === 'products') {
+          const headers = result.meta.fields || [];
+          const detectedType = type === 'auto' ? detectCsvImportType(headers) : type;
+
+          if (!detectedType) {
+            setResults({
+              success: false,
+              errors: ['Não foi possível identificar se o arquivo é de pessoas ou produtos pelos cabeçalhos.']
+            });
+            setIsProcessing(false);
+            return;
+          }
+
+          if (!window.confirm(`Deseja importar ${rows.length} ${detectedType === 'products' ? 'produtos' : 'pessoas'}?`)) {
+            setIsProcessing(false);
+            return;
+          }
+
+          if (detectedType === 'products') {
             importResults = await importProductsFromCSV(
               rows,
               (product, existing) => {
-                const nextPrice = parseFloat(String(product.price ?? '0').replace(',', '.'));
+                const nextBarcode = String(getProductCsvValue(product, [...PRODUCT_FIELD_ALIASES.barcode]) ?? '');
+                const nextStock = String(getProductCsvValue(product, [...PRODUCT_FIELD_ALIASES.stock]) ?? 0);
+                const nextPriceValue = getProductCsvValue(product, [...PRODUCT_FIELD_ALIASES.price]);
+                const nextPrice = parseFloat(String(nextPriceValue ?? '0').replace(',', '.'));
                 return window.confirm(
                   `Produto "${existing.name}" (código ${existing.barcode}) já existe.\n` +
                   `Existente: R$ ${existing.price.toFixed(2)} - Estoque: ${existing.stock}\n` +
-                  `Novo: R$ ${nextPrice.toFixed(2)} - Estoque: ${String(product.stock ?? 0)}\n\n` +
+                  `Novo: Código ${nextBarcode || '-'} - R$ ${nextPrice.toFixed(2)} - Estoque: ${nextStock}\n\n` +
                   'Deseja atualizar com os dados do CSV?'
                 );
               }
@@ -155,27 +175,22 @@ export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type }) => 
     fileInputRef.current?.click(); // Open file input again to import more data
   };
 
-  const getExampleFormat = () => {
-    if (type === 'products') {
-      return {
-        headers: ['name ou Produto', 'barcode ou Código', 'price ou Preço', 'stock ou Estoque'],
-        example: ['Coca-Cola 350ml', '7894900011517', '3.50', '50']
-      };
-    } else {
-      return {
-        headers: ['ID Personalizado', 'Nome', 'Saldo Atual', 'Depósito Inicial'],
-        example: ['A001', 'João Silva', '50.00', '50.00']
-      };
+  const getProductCsvValue = (row: Record<string, unknown>, keys: string[]) => {
+    for (const key of keys) {
+      const value = row[key];
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        return value;
+      }
     }
-  };
 
-  const format = getExampleFormat();
+    return undefined;
+  };
 
   return (
     <>
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
         <DialogTitle>
-          Importar {type === 'products' ? 'Produtos' : 'Pessoas'} por CSV
+          Importar CSV
         </DialogTitle>
         
         <DialogContent>
@@ -184,21 +199,9 @@ export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type }) => 
               <>
                 <Alert severity="info" icon={<InfoIcon />}>
                   <Typography variant="body2">
-                    <strong>Formato esperado do CSV:</strong><br />
-                    Cabeçalhos: {format.headers.join(', ')}<br />
-                    Exemplo: {format.example.join(', ')}
+                    Selecione um arquivo CSV. O sistema identifica automaticamente se ele é de pessoas ou de produtos e pede confirmação antes de importar.
                   </Typography>
                 </Alert>
-
-                {type === 'products' && (
-                  <Alert severity="warning">
-                    <Typography variant="body2">
-                      Aceita CSV com separador por vírgula ou ponto e vírgula.
-                      Se um produto com o mesmo código de barras já existir, 
-                      você será perguntado se deseja atualizar as informações.
-                    </Typography>
-                  </Alert>
-                )}
 
                 <Box
                   sx={{
@@ -253,7 +256,7 @@ export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type }) => 
                     <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
                       {(results.imported ?? 0) > 0 && (
                         <Chip 
-                          label={`${results.imported ?? 0} ${type === 'products' ? 'produtos' : 'pessoas'} importados`}
+                          label={`${results.imported ?? 0} registros importados`}
                           color="success"
                           size="small"
                         />
@@ -313,10 +316,10 @@ export const CSVImport: React.FC<CSVImportProps> = ({ open, onClose, type }) => 
           {results && results.success && (
             <Button
               variant="contained"
-                  onClick={() => handleImportMore()}
+              onClick={() => handleImportMore()}
               disabled={isProcessing}
             >
-              Importar Mais {type === 'products' ? 'Produtos' : 'Pessoas'}
+              Importar Outro CSV
             </Button>
           )}
         </DialogActions>

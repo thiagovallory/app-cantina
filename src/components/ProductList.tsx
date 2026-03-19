@@ -17,12 +17,14 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  InputAdornment
+  InputAdornment,
+  Stack
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
   Search as SearchIcon,
-  QrCodeScanner
+  QrCodeScanner,
+  DeleteSweep as DeleteSweepIcon
 } from '@mui/icons-material';
 import { useApp } from '../context/AppContext';
 import { BarcodeScanner } from './BarcodeScanner';
@@ -41,6 +43,7 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
   const [editValue, setEditValue] = useState<string>('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showScanner, setShowScanner] = useState(false);
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; title: string; message: string }>({
@@ -177,7 +180,11 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
 
   const handleDeleteConfirm = () => {
     if (productToDelete) {
-      deleteProduct(productToDelete);
+      const idsToDelete = productToDelete === '__bulk__' ? selectedProductIds : [productToDelete];
+      idsToDelete.forEach((id) => {
+        deleteProduct(id);
+      });
+      setSelectedProductIds((current) => current.filter((id) => !idsToDelete.includes(id)));
       setProductToDelete(null);
     }
     setDeleteDialogOpen(false);
@@ -192,6 +199,38 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
     const product = getProductByBarcode(barcode);
     setSearchTerm(product?.barcode || barcode);
     setShowScanner(false);
+  };
+
+  const filteredProductIds = filteredProducts.map((product) => product.id);
+  const selectedFilteredCount = filteredProductIds.filter((id) => selectedProductIds.includes(id)).length;
+  const allFilteredSelected = filteredProductIds.length > 0 && selectedFilteredCount === filteredProductIds.length;
+  const partiallySelected = selectedFilteredCount > 0 && !allFilteredSelected;
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProductIds((current) => (
+      current.includes(productId)
+        ? current.filter((id) => id !== productId)
+        : [...current, productId]
+    ));
+  };
+
+  const toggleSelectAllFiltered = () => {
+    setSelectedProductIds((current) => {
+      if (allFilteredSelected) {
+        return current.filter((id) => !filteredProductIds.includes(id));
+      }
+
+      return Array.from(new Set([...current, ...filteredProductIds]));
+    });
+  };
+
+  const handleBulkDeleteClick = () => {
+    if (selectedProductIds.length === 0) {
+      return;
+    }
+
+    setProductToDelete('__bulk__');
+    setDeleteDialogOpen(true);
   };
 
   return (
@@ -234,7 +273,29 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
             }
           }}
         />
-        {headerAction}
+        <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+          {selectedProductIds.length > 0 && (
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<DeleteSweepIcon />}
+              onClick={handleBulkDeleteClick}
+              sx={(theme) => ({
+                borderRadius: 3,
+                minWidth: 190,
+                height: 40,
+                bgcolor: theme.palette.mode === 'dark' ? 'error.main' : undefined,
+                color: theme.palette.mode === 'dark' ? 'error.contrastText' : undefined,
+                '&:hover': {
+                  bgcolor: theme.palette.mode === 'dark' ? 'error.dark' : undefined
+                }
+              })}
+            >
+              Excluir Selecionados ({selectedProductIds.length})
+            </Button>
+          )}
+          {headerAction}
+        </Stack>
       </Box>
 
       {products.length === 0 ? (
@@ -256,6 +317,27 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
           <Table sx={{ minWidth: 650 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: 'surface.variant' }}>
+                <TableCell padding="checkbox" sx={{ width: 52, pl: 1.5, pr: 1 }}>
+                  <Box
+                    onClick={toggleSelectAllFiltered}
+                    aria-label="selecionar todos os produtos filtrados"
+                    sx={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: '50%',
+                      mx: 'auto',
+                      bgcolor: allFilteredSelected
+                        ? 'primary.main'
+                        : partiallySelected
+                          ? 'primary.light'
+                          : 'transparent',
+                      border: '1px solid',
+                      borderColor: allFilteredSelected || partiallySelected ? 'primary.main' : 'divider',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </TableCell>
                 <TableCell sx={{ fontWeight: 600, width: '15%' }}>Código</TableCell>
                 <TableCell sx={{ fontWeight: 600, width: '24%' }}>Produto</TableCell>
                 <TableCell sx={{ fontWeight: 600, width: '10%' }}>Qtd Comprada</TableCell>
@@ -272,9 +354,26 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
                   key={product.id}
                   sx={{ 
                     '&:last-child td, &:last-child th': { border: 0 },
-                    '&:hover': { bgcolor: 'action.hover' }
+                    '&:hover': { bgcolor: 'action.hover' },
+                    bgcolor: selectedProductIds.includes(product.id) ? 'action.selected' : 'inherit'
                   }}
                 >
+                <TableCell padding="checkbox" sx={{ pl: 1.5, pr: 1 }}>
+                  <Box
+                    onClick={() => toggleProductSelection(product.id)}
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      mx: 'auto',
+                      bgcolor: selectedProductIds.includes(product.id) ? 'primary.main' : 'transparent',
+                      border: '1px solid',
+                      borderColor: selectedProductIds.includes(product.id) ? 'primary.main' : 'divider',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </TableCell>
                 {/* Código de Barras */}
                 <TableCell sx={{ width: '15%' }}>
                   {editingField?.productId === product.id && editingField?.field === 'barcode' ? (
@@ -505,7 +604,10 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
                   <IconButton
                     size="small"
                     color="error"
-                    onClick={() => handleDeleteClick(product.id)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleDeleteClick(product.id);
+                    }}
                   >
                     <DeleteIcon />
                   </IconButton>
@@ -536,11 +638,25 @@ export const ProductList: React.FC<ProductListProps> = ({ headerAction }) => {
       </DialogTitle>
       <DialogContent>
         <Typography id="delete-dialog-description">
-          Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.
+          {productToDelete === '__bulk__'
+            ? `Tem certeza que deseja excluir ${selectedProductIds.length} produtos selecionados? Esta ação não pode ser desfeita.`
+            : 'Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita.'}
         </Typography>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleDeleteCancel} color="secondary">
+        <Button
+          onClick={handleDeleteCancel}
+          variant="outlined"
+          color="inherit"
+          sx={(theme) => ({
+            borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.22)' : 'divider',
+            color: theme.palette.mode === 'dark' ? 'grey.100' : 'text.primary',
+            '&:hover': {
+              borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.38)' : 'text.primary',
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.04)'
+            }
+          })}
+        >
           Cancelar
         </Button>
         <Button onClick={handleDeleteConfirm} color="error" variant="contained">
